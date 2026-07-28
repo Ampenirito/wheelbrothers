@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wheelbrothers - Ride Table Generator & Description Rewriter</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i data-lucide="bike"></i>
+                    </div>
+                    <div>
+                        <h1>Wheelbrothers <span>Ride Studio</span></h1>
+                        <p>Ride Table Snippet Generator & Smart Rewriter</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-outline" id="themeToggleBtn">
+                        <i data-lucide="moon"></i> <span id="themeToggleText">Dark Theme</span>
+                    </button>
+                    <button class="btn btn-primary" id="exportFullTableBtn">
+                        <i data-lucide="code-2"></i> Export Master Table HTML
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="snippet-tab">
+                <i data-lucide="plus-circle"></i> 1. Snippet Generator
+            </button>
+            <button class="tab-btn" data-tab="rewriter-tab">
+                <i data-lucide="sparkles"></i> 2. Ride Info Rewriter
+            </button>
+            <button class="tab-btn" data-tab="master-table-tab">
+                <i data-lucide="table"></i> 3. Master 2026 Ride Table (<span id="rideCountBadge">0</span>)
+            </button>
+        </nav>
+
+        <main class="main-content">
+            <!-- TAB 1: SNIPPET GENERATOR -->
+            <section id="snippet-tab" class="tab-pane active">
+                <div class="grid-2col">
+                    <!-- Form Input -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i data-lucide="edit-3"></i> Ride Details Input</h2>
+                            <p>Fill in the details to generate the exact Wheelbrothers table HTML row.</p>
+                        </div>
+                        <form id="snippetForm" onsubmit="return false;">
+                            <div class="form-group featured-toggle-group">
+                                <label class="toggle-label" for="isFeatured">
+                                    <input type="checkbox" id="isFeatured" class="toggle-checkbox">
+                                    <span class="toggle-custom"></span>
+                                    <span class="toggle-text">
+                                        <strong>Featured Ride</strong>
+                                        <small>Includes highlighted background, badge & image</small>
+                                    </span>
+                                </label>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventTitle">Event Name / Title *</label>
+                                <input type="text" id="eventTitle" placeholder="e.g. European Tour of Texas" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="eventUrl">Event Link (URL) *</label>
+                                <input type="url" id="eventUrl" placeholder="https://wheelbrothers.com/european-tour-of-texas-2026/" required>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="eventLocation">Location *</label>
+                                    <input type="text" id="eventLocation" placeholder="e.g. Texas, TX" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="eventDate">Date *</label>
+                                    <input type="text" id="eventDate" placeholder="e.g. April 25 - July 18, 2026" required>
+                                </div>
+                            </div>
+
+                            <div id="featuredFields" class="featured-fields-box hidden">
+                                <div class="form-group">
+                                    <label for="eventImgUrl">Image URL (For Featured Rides)</label>
+                                    <input type="url" id="eventImgUrl" placeholder="https://wheelbrothers.com/wp-content/uploads/2025/12/example.jpg">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="imgWidth">Image Width (px)</label>
+                                        <input type="number" id="imgWidth" value="100">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="imgHeight">Image Height (px)</label>
+                                        <input type="number" id="imgHeight" value="100">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" id="clearFormBtn">
+                                    <i data-lucide="rotate-ccw"></i> Clear Form
+                                </button>
+                                <button type="button" class="btn btn-accent" id="addToTableBtn">
+                                    <i data-lucide="database"></i> Add to Master Table
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Generated Snippet Output -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i data-lucide="code"></i> Generated HTML Snippet</h2>
+                            <p>Copy this <code>&lt;tr&gt;</code> block into your WordPress table.</p>
+                        </div>
+                        <div class="code-preview-container">
+                            <div class="code-header">
+                                <span class="code-lang">HTML Row Snippet</span>
+                                <button class="btn btn-small btn-primary" id="copySnippetBtn">
+                                    <i data-lucide="copy"></i> Copy Snippet
+                                </button>
+                            </div>
+                            <pre><code id="snippetCodeOutput">&lt;!-- Fill the form to see HTML preview --&gt;</code></pre>
+                        </div>
+
+                        <div class="live-row-preview">
+                            <h3>Live Preview inside 2026 Table Style:</h3>
+                            <figure id="uniqueTexasRideTable2026" class="wp-block-table custom-table is-style-regular texasridetable2026 preview-table-wrap">
+                                <table>
+                                    <tbody>
+                                        <tr class="table-header">
+                                            <td><strong>Event</strong></td>
+                                            <td><strong>Location</strong></td>
+                                            <td><strong>Date</strong></td>
+                                        </tr>
+                                        <tr id="previewRowContainer">
+                                            <!-- Preview row injected here -->
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </figure>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: RIDE INFO REWRITER -->
+            <section id="rewriter-tab" class="tab-pane">
+                <div class="grid-2col">
+                    <!-- Raw Input -->
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2><i data-lucide="file-text"></i> Paste Raw Submission</h2>
+                                <p>Paste event details submitted via form/email below.</p>
+                            </div>
+                            <button class="btn btn-small btn-outline" id="loadSampleRewriterBtn">
+                                <i data-lucide="file-input"></i> Load Sample Data
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="rawRideInput" rows="18" placeholder="Paste information here... E.g.
+Date
+ 	10/03/2026
+Ride name
+ 	Rock Island Ride
+Ride distance:
+ 	10, 28, 41 (Gravel), 42, and 63 miles
+State
+ 	Oklahoma (OK)
+Location
+ 	Chickasha, OK
+About the Ride:
+ 	Chickasha Rock Island Ride..."></textarea>
+                        </div>
+                        <div class="form-actions flex-between">
+                            <button class="btn btn-secondary" id="clearRawBtn">
+                                <i data-lucide="trash-2"></i> Clear Input
+                            </button>
+                            <button class="btn btn-primary" id="processRewriteBtn">
+                                <i data-lucide="sparkles"></i> Rewrite & Format Ride Info
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Formatted Output -->
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2><i data-lucide="check-circle-2"></i> Formatted & Polished Output</h2>
+                                <p>Ready-to-publish summary preserving all facts and details.</p>
+                            </div>
+                            <button class="btn btn-small btn-primary" id="copyRewrittenBtn">
+                                <i data-lucide="copy"></i> Copy Clean Text
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="rewrittenOutput" rows="18" placeholder="Formatted output will appear here..."></textarea>
+                        </div>
+                        <div class="card-footer-info">
+                            <i data-lucide="info"></i> Tip: You can directly edit the text box above before copying if you wish to adjust any wordings!
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: MASTER 2026 RIDE TABLE -->
+            <section id="master-table-tab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <div>
+                            <h2><i data-lucide="list"></i> 2026 Wheelbrothers Master Ride Table</h2>
+                            <p>View, manage, filter, and export the entire 2026 ride table HTML.</p>
+                        </div>
+                        <div class="table-actions">
+                            <div class="search-box">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="tableSearchInput" placeholder="Search rides by name or location...">
+                            </div>
+                            <button class="btn btn-outline" id="filterFeaturedBtn" data-filter="all">
+                                Filter: All Rides
+                            </button>
+                            <button class="btn btn-primary" id="copyMasterHtmlBtn">
+                                <i data-lucide="code"></i> Copy Full Table HTML
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <!-- Preserved exact CSS scope and HTML figure wrapper -->
+                        <figure id="uniqueTexasRideTable2026" class="wp-block-table custom-table is-style-regular texasridetable2026">
+                            <table>
+                                <tbody id="masterTableBody">
+                                    <!-- Full table content pre-loaded from script -->
+                                </tbody>
+                            </table>
+                        </figure>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="codeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i data-lucide="code-2"></i> Master 2026 Table HTML Code</h3>
+                <button class="close-modal" id="closeModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Includes full <code>&lt;style&gt;</code> block and exact <code>&lt;figure id="uniqueTexasRideTable2026"&gt;</code> table HTML.</p>
+                <div class="code-preview-container">
+                    <pre><code id="fullMasterCode"></code></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeModalFooterBtn">Close</button>
+                <button class="btn btn-primary" id="copyModalCodeBtn"><i data-lucide="copy"></i> Copy All HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i data-lucide="check"></i> <span id="toastMessage">Copied to clipboard!</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
