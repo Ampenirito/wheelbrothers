@@ -1835,7 +1835,7 @@ function copyRichTextToClipboard(htmlContent, plainContent) {
 }
 
 /**
- * HTML Polisher Engine: Generates rich HTML output with live active hyperlinks
+ * HTML Polisher Engine: Generates rich HTML output with live active hyperlinks and clean bold styling
  */
 function generatePolishedHtmlSummary(p) {
     const name = p.name || 'Cycling Event';
@@ -1905,17 +1905,17 @@ function generatePolishedHtmlSummary(p) {
     if (regUrl || siteUrl) {
         html += `<p><strong>Registration &amp; Website:</strong><br>\n`;
         if (regUrl) {
-            html += `Registration: <a href="${regUrl}" target="_blank" rel="noopener">${regUrl}</a><br>\n`;
+            html += `<strong>Registration:</strong> <a href="${regUrl}" target="_blank" rel="noopener">${regUrl}</a><br>\n`;
         }
         if (siteUrl) {
-            html += `Website: <a href="${siteUrl}" target="_blank" rel="noopener">${siteUrl}</a><br>\n`;
+            html += `<strong>Website:</strong> <a href="${siteUrl}" target="_blank" rel="noopener">${siteUrl}</a><br>\n`;
         }
         html += `</p>\n\n`;
     }
 
     if (p.contactEmail) {
         const mailHref = p.contactEmail.includes('@') ? `mailto:${p.contactEmail}` : '#';
-        html += `<p><strong>Contact Information:</strong><br>\nEmail: <a href="${mailHref}">${p.contactEmail}</a></p>`;
+        html += `<p><strong>Contact Information:</strong><br>\n<strong>Email:</strong> <a href="${mailHref}">${p.contactEmail}</a></p>`;
     }
 
     return html.trim();
@@ -2128,34 +2128,34 @@ function generatePolishedSummary(p) {
         recReason = `The ${name} offers excellent routes, a caring and well-organized team, competitive KOM/QOM challenges, and a full weekend of family-friendly activities while supporting local charities.`;
     }
 
-    // Assemble final output text
-    let output = `Event Name: ${name}\n`;
-    output += `Date: ${dateFormatted}\n`;
-    output += `Ride Distance: ${distance}\n`;
-    if (state) output += `State: ${state}\n`;
-    output += `Location: ${locationFull}\n\n`;
+    // Assemble final output text with bold Markdown tags for clean reading
+    let output = `**Event Name:** ${name}\n`;
+    output += `**Date:** ${dateFormatted}\n`;
+    output += `**Ride Distance:** ${distance}\n`;
+    if (state) output += `**State:** ${state}\n`;
+    output += `**Location:** ${locationFull}\n\n`;
 
-    output += `About the Ride:\n`;
+    output += `**About the Ride:**\n`;
     output += aboutParagraphs.join('\n\n') + `\n\n`;
 
     if (p.recommended) {
-        output += `Recommended for others? ${p.recommended}\n\n`;
+        output += `**Recommended for others?** ${p.recommended}\n\n`;
     }
 
     if (recReason) {
-        output += `Why are you recommending it?\n${recReason}\n\n`;
+        output += `**Why are you recommending it?**\n${recReason}\n\n`;
     }
 
     if (regUrl || siteUrl) {
-        output += `Registration & Website:\n`;
-        if (regUrl) output += `Registration: ${regUrl}\n`;
-        if (siteUrl) output += `Website: ${siteUrl}\n`;
+        output += `**Registration & Website:**\n`;
+        if (regUrl) output += `**Registration:** ${regUrl}\n`;
+        if (siteUrl) output += `**Website:** ${siteUrl}\n`;
         output += `\n`;
     }
 
     if (p.contactEmail) {
-        output += `Contact Information:\n`;
-        output += `Email: ${p.contactEmail}\n`;
+        output += `**Contact Information:**\n`;
+        output += `**Email:** ${p.contactEmail}\n`;
     }
 
     return output.trim();
