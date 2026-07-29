@@ -248,8 +248,49 @@ About the Ride:
                             </div>
                         </div>
 
-                        <div class="card-footer-info" style="margin-top: 12px;">
+                        <div class="card-footer-info" style="margin-top: 12px; margin-bottom: 18px;">
                             <i data-lucide="info"></i> <strong>Tip:</strong> "Copy Rich Text" copies directly to your clipboard with live blue hyperlinks intact for WordPress, Google Docs, Word, or Email!
+                        </div>
+
+                        <!-- Auto-Generated Table Snippet & Push Section -->
+                        <div id="autoSnippetSection" class="auto-snippet-box hidden">
+                            <div class="auto-snippet-header flex-between">
+                                <h3><i data-lucide="code-2"></i> Auto-Generated Table Snippet</h3>
+                                <label class="toggle-label-sm" for="autoIsFeatured">
+                                    <input type="checkbox" id="autoIsFeatured" class="toggle-checkbox">
+                                    <span class="toggle-custom-sm"></span>
+                                    <span style="font-size: 0.85rem; font-weight: 700;">Featured Ride</span>
+                                </label>
+                            </div>
+
+                            <div class="form-group" style="margin-top: 10px; margin-bottom: 10px;">
+                                <label for="autoEventUrl" style="font-size: 0.8rem;">Ride Link URL (Completes the Snippet) *</label>
+                                <input type="url" id="autoEventUrl" placeholder="https://wheelbrothers.com/rock-island-ride/">
+                            </div>
+
+                            <div id="autoFeaturedImgBox" class="featured-fields-box hidden" style="padding: 10px; margin-bottom: 10px;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="autoEventImgUrl" style="font-size: 0.775rem;">Featured Image URL</label>
+                                    <input type="url" id="autoEventImgUrl" placeholder="https://wheelbrothers.com/wp-content/uploads/...">
+                                </div>
+                            </div>
+
+                            <div class="code-preview-container" style="margin-bottom: 12px;">
+                                <div class="code-header">
+                                    <span class="code-lang">HTML Row Snippet</span>
+                                    <button class="btn btn-small btn-primary" id="copyAutoSnippetBtn">
+                                        <i data-lucide="copy"></i> Copy Snippet HTML
+                                    </button>
+                                </div>
+                                <pre><code id="autoSnippetCodeOutput">&lt;!-- Code snippet will appear here --&gt;</code></pre>
+                            </div>
+
+                            <div class="flex-between">
+                                <span style="font-size: 0.775rem; color: var(--text-muted);">Parses Date, Title & Location automatically!</span>
+                                <button class="btn btn-small btn-accent" id="pushAutoSnippetToMasterBtn">
+                                    <i data-lucide="database"></i> Push to Master Table (Date Ordered)
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

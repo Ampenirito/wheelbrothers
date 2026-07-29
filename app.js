@@ -1520,17 +1520,125 @@ function initRewriter() {
         });
     });
 
+    const autoSnippetSection = document.getElementById('autoSnippetSection');
+    const autoIsFeatured = document.getElementById('autoIsFeatured');
+    const autoEventUrl = document.getElementById('autoEventUrl');
+    const autoEventImgUrl = document.getElementById('autoEventImgUrl');
+    const autoFeaturedImgBox = document.getElementById('autoFeaturedImgBox');
+    const autoSnippetCodeOutput = document.getElementById('autoSnippetCodeOutput');
+    const copyAutoSnippetBtn = document.getElementById('copyAutoSnippetBtn');
+    const pushAutoSnippetToMasterBtn = document.getElementById('pushAutoSnippetToMasterBtn');
+
+    let currentParsedData = null;
+
+    // Toggle Auto Featured Image field
+    autoIsFeatured.addEventListener('change', () => {
+        if (autoIsFeatured.checked) {
+            autoFeaturedImgBox.classList.remove('hidden');
+        } else {
+            autoFeaturedImgBox.classList.add('hidden');
+        }
+        updateAutoSnippetPreview();
+    });
+
+    [autoEventUrl, autoEventImgUrl].forEach(input => {
+        input.addEventListener('input', updateAutoSnippetPreview);
+    });
+
+    // Copy Auto Snippet
+    copyAutoSnippetBtn.addEventListener('click', () => {
+        const snippet = generateAutoSnippetHtml();
+        if (!snippet) return;
+        navigator.clipboard.writeText(snippet).then(() => {
+            showToast("Table Snippet HTML copied to clipboard!");
+        });
+    });
+
+    // Push Auto Snippet to Master Table
+    pushAutoSnippetToMasterBtn.addEventListener('click', () => {
+        if (!currentParsedData) {
+            alert("Please process a ride rewrite first.");
+            return;
+        }
+
+        const snippet = generateAutoSnippetHtml();
+        const title = currentParsedData.name || "Cycling Event";
+        const location = expandLocation(currentParsedData.location, currentParsedData.state) || "Texas, TX";
+        const date = formatReadableDate(currentParsedData.date) || currentParsedData.date || "Date, 2026";
+
+        const newRide = {
+            html: snippet,
+            title: title,
+            location: location,
+            date: date,
+            isFeatured: autoIsFeatured.checked
+        };
+
+        insertRideChronologically(newRide);
+        renderMasterTable();
+        showToast(`"${title}" pushed to Master Table in date order!`);
+    });
+
+    function generateAutoSnippetHtml() {
+        if (!currentParsedData) return '';
+        const title = currentParsedData.name || "Event Title";
+        const location = expandLocation(currentParsedData.location, currentParsedData.state) || "Texas, TX";
+        const date = formatReadableDate(currentParsedData.date) || currentParsedData.date || "Date, 2026";
+        const url = autoEventUrl.value.trim() || "https://wheelbrothers.com/";
+        const isFeatured = autoIsFeatured.checked;
+        const img = autoEventImgUrl.value.trim();
+
+        let html = '';
+        if (isFeatured) {
+            html = `<tr class="featured-ride">
+<td><strong><a href="${url}" target="_blank">${title} <span class="featured-label">(Featured)</span></a></strong>`;
+            if (img) {
+                html += `<br>\n<img src="${img}" width="100" height="100" class="responsive-img">`;
+            }
+            html += `</td>\n<td>${location}</td>\n<td>${date}</td>\n</tr>`;
+        } else {
+            html = `<tr>
+<td><strong><a href="${url}" target="_blank">${title}</a></strong></td>
+<td>${location}</td>
+<td>${date}</td>
+</tr>`;
+        }
+        return html;
+    }
+
+    function updateAutoSnippetPreview() {
+        const snippet = generateAutoSnippetHtml();
+        if (snippet) {
+            autoSnippetCodeOutput.textContent = snippet;
+        }
+    }
+
     function rewriteRideInfo() {
         const text = rawInput.value.trim();
         if (!text) {
             outputArea.value = '';
             richTextOutput.innerHTML = '<p class="placeholder-text">Formatted output with active hyperlinks will appear here...</p>';
             factCheckContainer.classList.add('hidden');
+            autoSnippetSection.classList.add('hidden');
+            currentParsedData = null;
             return;
         }
 
         // 1. Parse raw information
         const parsed = parseRawSubmission(text);
+        currentParsedData = parsed;
+
+        // Auto-fill Link URL in snippet box if found
+        let foundUrl = parsed.registrationLink || '';
+        if (!foundUrl && parsed.website) {
+            const regMatch = parsed.website.match(/Registration:\s*(https?:\/\/[^\s]+)/i);
+            const siteMatch = parsed.website.match(/Website:\s*(https?:\/\/[^\s]+)/i);
+            if (regMatch) foundUrl = regMatch[1];
+            else if (siteMatch) foundUrl = siteMatch[1];
+            else if (parsed.website.startsWith('http')) foundUrl = parsed.website;
+        }
+
+        autoEventUrl.value = foundUrl || 'https://wheelbrothers.com/';
 
         // 2. Run Fact Checker Audit
         const audit = runFactCheckAudit(parsed);
@@ -1542,6 +1650,10 @@ function initRewriter() {
 
         outputArea.value = currentPlainSummary;
         richTextOutput.innerHTML = currentHtmlSummary;
+
+        // 4. Reveal & update Auto-Generated Snippet box
+        autoSnippetSection.classList.remove('hidden');
+        updateAutoSnippetPreview();
     }
 }
 
