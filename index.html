@@ -161,7 +161,7 @@
             <!-- TAB 2: RIDE INFO REWRITER -->
             <section id="rewriter-tab" class="tab-pane">
                 <div class="grid-2col">
-                    <!-- Raw Input -->
+                    <!-- Raw Input & Fact Checker -->
                     <div class="card">
                         <div class="card-header flex-between">
                             <div>
@@ -173,7 +173,7 @@
                             </button>
                         </div>
                         <div class="form-group">
-                            <textarea id="rawRideInput" rows="18" placeholder="Paste information here... E.g.
+                            <textarea id="rawRideInput" rows="14" placeholder="Paste information here... E.g.
 Date
  	10/03/2026
 Ride name
@@ -187,32 +187,69 @@ Location
 About the Ride:
  	Chickasha Rock Island Ride..."></textarea>
                         </div>
-                        <div class="form-actions flex-between">
+
+                        <!-- Fact Checker Results Box -->
+                        <div id="factCheckContainer" class="fact-check-box hidden">
+                            <div class="fact-check-header">
+                                <h3><i data-lucide="shield-check"></i> Fact Checker & Data Verification Audit</h3>
+                                <span class="fact-status-badge pass" id="factAuditBadge">5/5 Verified</span>
+                            </div>
+                            <div class="fact-check-list" id="factCheckList">
+                                <!-- Fact audit items dynamically populated -->
+                            </div>
+                        </div>
+
+                        <div class="form-actions flex-between" style="margin-top: 14px;">
                             <button class="btn btn-secondary" id="clearRawBtn">
                                 <i data-lucide="trash-2"></i> Clear Input
                             </button>
                             <button class="btn btn-primary" id="processRewriteBtn">
-                                <i data-lucide="sparkles"></i> Rewrite & Format Ride Info
+                                <i data-lucide="sparkles"></i> Fact-Check & Rewrite Info
                             </button>
                         </div>
                     </div>
 
-                    <!-- Formatted Output -->
+                    <!-- Formatted Hyperlinked Output -->
                     <div class="card">
                         <div class="card-header flex-between">
                             <div>
-                                <h2><i data-lucide="check-circle-2"></i> Formatted & Polished Output</h2>
-                                <p>Ready-to-publish summary preserving all facts and details.</p>
+                                <h2><i data-lucide="check-circle-2"></i> Formatted Output (Hyperlinked)</h2>
+                                <p>Polished summary with live clickable hyperlinks ready for copy-pasting.</p>
                             </div>
-                            <button class="btn btn-small btn-primary" id="copyRewrittenBtn">
-                                <i data-lucide="copy"></i> Copy Clean Text
-                            </button>
+                            <div class="output-mode-buttons">
+                                <button class="btn btn-small btn-outline active" id="viewRichBtn"><i data-lucide="link"></i> Rich Text</button>
+                                <button class="btn btn-small btn-outline" id="viewPlainBtn"><i data-lucide="file-code"></i> Plain Text</button>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <textarea id="rewrittenOutput" rows="18" placeholder="Formatted output will appear here..."></textarea>
+
+                        <!-- Rich Text (Hyperlinked) Container -->
+                        <div id="richTextModeBox">
+                            <div class="code-header" style="margin-bottom: 8px;">
+                                <span class="code-lang">Rich Text with Hyperlinks (Editable)</span>
+                                <button class="btn btn-small btn-primary" id="copyRichTextBtn">
+                                    <i data-lucide="copy"></i> Copy Rich Text (With Hyperlinks)
+                                </button>
+                            </div>
+                            <div id="richTextOutput" class="rich-text-editor" contenteditable="true">
+                                <p class="placeholder-text">Formatted output with active hyperlinks will appear here after clicking "Fact-Check & Rewrite Info"...</p>
+                            </div>
                         </div>
-                        <div class="card-footer-info">
-                            <i data-lucide="info"></i> Tip: You can directly edit the text box above before copying if you wish to adjust any wordings!
+
+                        <!-- Plain Text Container (Hidden by default or toggled) -->
+                        <div id="plainTextModeBox" class="hidden">
+                            <div class="code-header" style="margin-bottom: 8px;">
+                                <span class="code-lang">Plain Text / Markdown</span>
+                                <button class="btn btn-small btn-primary" id="copyRewrittenBtn">
+                                    <i data-lucide="copy"></i> Copy Plain Text
+                                </button>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="rewrittenOutput" rows="16" placeholder="Plain text output will appear here..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="card-footer-info" style="margin-top: 12px;">
+                            <i data-lucide="info"></i> <strong>Tip:</strong> "Copy Rich Text" copies directly to your clipboard with live blue hyperlinks intact for WordPress, Google Docs, Word, or Email!
                         </div>
                     </div>
                 </div>

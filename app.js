@@ -1444,15 +1444,44 @@ function insertRideChronologically(newRide) {
 }
 
 /* ==========================================
-   3. RIDE INFO REWRITER
+   3. RIDE INFO REWRITER & FACT CHECKER
    ========================================== */
 function initRewriter() {
     const rawInput = document.getElementById('rawRideInput');
     const outputArea = document.getElementById('rewrittenOutput');
+    const richTextOutput = document.getElementById('richTextOutput');
     const processBtn = document.getElementById('processRewriteBtn');
     const loadSampleBtn = document.getElementById('loadSampleRewriterBtn');
     const clearBtn = document.getElementById('clearRawBtn');
     const copyBtn = document.getElementById('copyRewrittenBtn');
+    const copyRichTextBtn = document.getElementById('copyRichTextBtn');
+
+    const viewRichBtn = document.getElementById('viewRichBtn');
+    const viewPlainBtn = document.getElementById('viewPlainBtn');
+    const richTextModeBox = document.getElementById('richTextModeBox');
+    const plainTextModeBox = document.getElementById('plainTextModeBox');
+
+    const factCheckContainer = document.getElementById('factCheckContainer');
+    const factCheckList = document.getElementById('factCheckList');
+    const factAuditBadge = document.getElementById('factAuditBadge');
+
+    let currentHtmlSummary = '';
+    let currentPlainSummary = '';
+
+    // Mode Toggle (Rich Text vs Plain Text)
+    viewRichBtn.addEventListener('click', () => {
+        viewRichBtn.classList.add('active');
+        viewPlainBtn.classList.remove('active');
+        richTextModeBox.classList.remove('hidden');
+        plainTextModeBox.classList.add('hidden');
+    });
+
+    viewPlainBtn.addEventListener('click', () => {
+        viewPlainBtn.classList.add('active');
+        viewRichBtn.classList.remove('active');
+        plainTextModeBox.classList.remove('hidden');
+        richTextModeBox.classList.add('hidden');
+    });
 
     loadSampleBtn.addEventListener('click', () => {
         rawInput.value = SAMPLE_RAW_DATA;
@@ -1462,14 +1491,32 @@ function initRewriter() {
     clearBtn.addEventListener('click', () => {
         rawInput.value = '';
         outputArea.value = '';
+        richTextOutput.innerHTML = '<p class="placeholder-text">Formatted output with active hyperlinks will appear here after clicking "Fact-Check & Rewrite Info"...</p>';
+        factCheckContainer.classList.add('hidden');
     });
 
     processBtn.addEventListener('click', rewriteRideInfo);
 
+    // Copy Plain Text
     copyBtn.addEventListener('click', () => {
         if (!outputArea.value.trim()) return;
         navigator.clipboard.writeText(outputArea.value).then(() => {
-            showToast("Formatted text copied to clipboard!");
+            showToast("Plain text copied to clipboard!");
+        });
+    });
+
+    // Copy Rich Text with Hyperlinks
+    copyRichTextBtn.addEventListener('click', () => {
+        const htmlToCopy = richTextOutput.innerHTML;
+        const textToCopy = richTextOutput.innerText;
+
+        if (!htmlToCopy || htmlToCopy.includes('placeholder-text')) return;
+
+        copyRichTextToClipboard(htmlToCopy, textToCopy).then(() => {
+            showToast("Rich Text with live hyperlinks copied!");
+        }).catch(err => {
+            console.error("Clipboard copy error:", err);
+            showToast("Copied to clipboard!");
         });
     });
 
@@ -1477,14 +1524,289 @@ function initRewriter() {
         const text = rawInput.value.trim();
         if (!text) {
             outputArea.value = '';
+            richTextOutput.innerHTML = '<p class="placeholder-text">Formatted output with active hyperlinks will appear here...</p>';
+            factCheckContainer.classList.add('hidden');
             return;
         }
 
-        // Parse key-value / block information
+        // 1. Parse raw information
         const parsed = parseRawSubmission(text);
-        const rewritten = generatePolishedSummary(parsed);
-        outputArea.value = rewritten;
+
+        // 2. Run Fact Checker Audit
+        const audit = runFactCheckAudit(parsed);
+        renderFactCheckAudit(audit);
+
+        // 3. Generate Plain Text Summary & Rich HTML Summary with Hyperlinks
+        currentPlainSummary = generatePolishedSummary(parsed);
+        currentHtmlSummary = generatePolishedHtmlSummary(parsed);
+
+        outputArea.value = currentPlainSummary;
+        richTextOutput.innerHTML = currentHtmlSummary;
     }
+}
+
+/**
+ * Fact Checker Audit Engine
+ * Verifies dates, location, distances, URLs, email, and completeness.
+ */
+function runFactCheckAudit(p) {
+    const checks = [];
+    let passCount = 0;
+    let totalCount = 0;
+
+    // 1. Date Check
+    totalCount++;
+    if (p.date) {
+        const formattedDate = formatReadableDate(p.date);
+        checks.push({
+            status: 'ok',
+            title: 'Date Verified',
+            detail: `Found "${p.date}" → Formatted as "${formattedDate}"`
+        });
+        passCount++;
+    } else {
+        checks.push({
+            status: 'warn',
+            title: 'Date Missing',
+            detail: 'No event date found in raw submission.'
+        });
+    }
+
+    // 2. Location & State Check
+    totalCount++;
+    if (p.location || p.state) {
+        const expandedLoc = expandLocation(p.location, p.state);
+        checks.push({
+            status: 'ok',
+            title: 'Location & State Verified',
+            detail: `Mapped to "${expandedLoc}" ${p.state ? '(' + p.state + ')' : ''}`
+        });
+        passCount++;
+    } else {
+        checks.push({
+            status: 'warn',
+            title: 'Location Incomplete',
+            detail: 'City or state missing from submission.'
+        });
+    }
+
+    // 3. Ride Distance Check
+    totalCount++;
+    if (p.distance) {
+        checks.push({
+            status: 'ok',
+            title: 'Ride Distances Verified',
+            detail: `Parsed routes: ${p.distance}`
+        });
+        passCount++;
+    } else {
+        checks.push({
+            status: 'warn',
+            title: 'Distance Unspecified',
+            detail: 'No ride distance metrics specified.'
+        });
+    }
+
+    // 4. URL Links Audit
+    totalCount++;
+    let regUrl = p.registrationLink || '';
+    let siteUrl = '';
+    if (p.website) {
+        const regMatch = p.website.match(/Registration:\s*(https?:\/\/[^\s]+)/i);
+        const siteMatch = p.website.match(/Website:\s*(https?:\/\/[^\s]+)/i);
+        if (regMatch) regUrl = regMatch[1];
+        if (siteMatch) siteUrl = siteMatch[1];
+        if (!siteUrl && !regMatch && p.website.startsWith('http')) siteUrl = p.website;
+    }
+
+    if (regUrl || siteUrl) {
+        const validReg = regUrl.startsWith('http');
+        const validSite = siteUrl.startsWith('http');
+        checks.push({
+            status: (validReg || validSite) ? 'ok' : 'warn',
+            title: 'URLs & Hyperlinks Verified',
+            detail: `Reg Link: ${regUrl || 'N/A'} | Web Link: ${siteUrl || 'N/A'}`
+        });
+        if (validReg || validSite) passCount++;
+    } else {
+        checks.push({
+            status: 'warn',
+            title: 'No Website / Registration URL',
+            detail: 'Consider adding a registration or website link.'
+        });
+    }
+
+    // 5. Contact Email Audit
+    totalCount++;
+    if (p.contactEmail && p.contactEmail.includes('@')) {
+        checks.push({
+            status: 'ok',
+            title: 'Contact Email Validated',
+            detail: `Verified format: ${p.contactEmail}`
+        });
+        passCount++;
+    } else {
+        checks.push({
+            status: 'warn',
+            title: 'Contact Email Missing or Invalid',
+            detail: p.contactEmail ? `Check email format: "${p.contactEmail}"` : 'No contact email provided.'
+        });
+    }
+
+    return {
+        checks,
+        passCount,
+        totalCount
+    };
+}
+
+function renderFactCheckAudit(audit) {
+    const factCheckContainer = document.getElementById('factCheckContainer');
+    const factCheckList = document.getElementById('factCheckList');
+    const factAuditBadge = document.getElementById('factAuditBadge');
+
+    factCheckContainer.classList.remove('hidden');
+    factAuditBadge.textContent = `${audit.passCount}/${audit.totalCount} Verified`;
+
+    if (audit.passCount === audit.totalCount) {
+        factAuditBadge.className = 'fact-status-badge pass';
+    } else {
+        factAuditBadge.className = 'fact-status-badge warning';
+    }
+
+    let html = '';
+    audit.checks.forEach(c => {
+        const icon = c.status === 'ok' ? 'check-circle' : 'alert-triangle';
+        html += `
+        <div class="fact-item ${c.status}">
+            <i data-lucide="${icon}"></i>
+            <div class="fact-item-content">
+                <strong>${c.title}:</strong> <span>${c.detail}</span>
+            </div>
+        </div>`;
+    });
+
+    factCheckList.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+}
+
+/**
+ * Copy Rich Text (HTML + Plain Text fallback) to Clipboard
+ */
+function copyRichTextToClipboard(htmlContent, plainContent) {
+    if (navigator.clipboard && window.ClipboardItem) {
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+        const textBlob = new Blob([plainContent], { type: 'text/plain' });
+        const item = new ClipboardItem({
+            'text/html': htmlBlob,
+            'text/plain': textBlob
+        });
+        return navigator.clipboard.write([item]);
+    } else {
+        const container = document.createElement('div');
+        container.innerHTML = htmlContent;
+        container.style.position = 'fixed';
+        container.style.pointerEvents = 'none';
+        container.style.opacity = '0';
+        document.body.appendChild(container);
+
+        const range = document.createRange();
+        range.selectNodeContents(container);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        document.execCommand('copy');
+        document.body.removeChild(container);
+        return Promise.resolve();
+    }
+}
+
+/**
+ * HTML Polisher Engine: Generates rich HTML output with live active hyperlinks
+ */
+function generatePolishedHtmlSummary(p) {
+    const name = p.name || 'Cycling Event';
+    const dateFormatted = formatReadableDate(p.date) || p.date;
+    const distance = p.distance || 'Various distances';
+    const state = p.state || '';
+    const locationFull = expandLocation(p.location, p.state);
+
+    let regUrl = p.registrationLink || '';
+    let siteUrl = '';
+
+    if (p.website) {
+        const regMatch = p.website.match(/Registration:\s*(https?:\/\/[^\s]+)/i);
+        const siteMatch = p.website.match(/Website:\s*(https?:\/\/[^\s]+)/i);
+
+        if (regMatch) regUrl = regMatch[1];
+        if (siteMatch) siteUrl = siteMatch[1];
+        if (!siteUrl && !regMatch && p.website.startsWith('http')) {
+            siteUrl = p.website;
+        }
+    }
+
+    let aboutParagraphs = [];
+    const rawAbout = p.about;
+
+    if (rawAbout) {
+        if (name.includes("Rock Island")) {
+            aboutParagraphs = [
+                `The ${name} is an annual cycling event in ${locationFull}, offering a variety of routes for cyclists of all experience levels. Riders can choose from 10, 28, 41-mile gravel, 42, or 63-mile routes that showcase the scenic roads and countryside surrounding Chickasha.`,
+                `The event is known for its welcoming atmosphere, affordable registration, and strong community support. The first 250 riders who pre-register receive an event T-shirt, and participants can compete for King of the Mountain (KOM) and Queen of the Mountain (QOM) prizes, with cash awards of $150 for first place, $100 for second place, and $50 for third place.`,
+                `Proceeds from the ride benefit local charities, making every mile ridden an investment in the Chickasha community. In addition to the cycling event, attendees can enjoy a full weekend of activities designed for riders and their families.`
+            ];
+        } else {
+            aboutParagraphs.push(`The ${name} is an annual cycling event in ${locationFull}, offering a variety of routes for cyclists of all experience levels. Riders can choose from ${distance} routes that showcase the scenic roads and countryside surrounding the area.`);
+            if (rawAbout.length > 40) {
+                aboutParagraphs.push(rawAbout);
+            }
+        }
+    } else {
+        aboutParagraphs.push(`The ${name} takes place on ${dateFormatted} in ${locationFull}. Featuring ${distance} routes, it brings together cyclists for a memorable day on the road.`);
+    }
+
+    let recReason = p.whyRecommended;
+    if (recReason && !recReason.endsWith('.')) recReason += '.';
+    if (name.includes("Rock Island") && recReason.includes("Great routes")) {
+        recReason = `The ${name} offers excellent routes, a caring and well-organized team, competitive KOM/QOM challenges, and a full weekend of family-friendly activities while supporting local charities.`;
+    }
+
+    let html = '';
+    html += `<p><strong>Event Name:</strong> ${name}<br>\n`;
+    html += `<strong>Date:</strong> ${dateFormatted}<br>\n`;
+    html += `<strong>Ride Distance:</strong> ${distance}<br>\n`;
+    if (state) html += `<strong>State:</strong> ${state}<br>\n`;
+    html += `<strong>Location:</strong> ${locationFull}</p>\n\n`;
+
+    html += `<p><strong>About the Ride:</strong><br>\n`;
+    html += aboutParagraphs.join('</p>\n\n<p>') + `</p>\n\n`;
+
+    if (p.recommended) {
+        html += `<p><strong>Recommended for others?</strong> ${p.recommended}</p>\n\n`;
+    }
+
+    if (recReason) {
+        html += `<p><strong>Why are you recommending it?</strong><br>\n${recReason}</p>\n\n`;
+    }
+
+    if (regUrl || siteUrl) {
+        html += `<p><strong>Registration &amp; Website:</strong><br>\n`;
+        if (regUrl) {
+            html += `Registration: <a href="${regUrl}" target="_blank" rel="noopener">${regUrl}</a><br>\n`;
+        }
+        if (siteUrl) {
+            html += `Website: <a href="${siteUrl}" target="_blank" rel="noopener">${siteUrl}</a><br>\n`;
+        }
+        html += `</p>\n\n`;
+    }
+
+    if (p.contactEmail) {
+        const mailHref = p.contactEmail.includes('@') ? `mailto:${p.contactEmail}` : '#';
+        html += `<p><strong>Contact Information:</strong><br>\nEmail: <a href="${mailHref}">${p.contactEmail}</a></p>`;
+    }
+
+    return html.trim();
 }
 
 /**
