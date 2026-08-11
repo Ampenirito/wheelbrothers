@@ -48,6 +48,9 @@
             <button class="tab-btn" data-tab="master-table-tab">
                 <i data-lucide="table"></i> 3. Master 2026 Ride Table (<span id="rideCountBadge">0</span>)
             </button>
+            <button class="tab-btn" data-tab="newsletter-tab">
+                <i data-lucide="mail"></i> 4. Newsletter Builder
+            </button>
         </nav>
 
         <main class="main-content">
@@ -329,6 +332,97 @@ About the Ride:
                         </figure>
                     </div>
                 </div>
+            <!-- TAB 4: BI-WEEKLY NEWSLETTER BUILDER -->
+            <section id="newsletter-tab" class="tab-pane">
+                <div class="grid-2col">
+                    <!-- Raw Newsletter Input -->
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2><i data-lucide="mail"></i> Bi-Weekly Newsletter Builder</h2>
+                                <p>Paste event submissions or select from Master Table to build a 15-day newsletter.</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-small btn-outline" id="loadSampleNewsletterBtn">
+                                    <i data-lucide="file-input"></i> Sample Data
+                                </button>
+                                <button class="btn btn-small btn-secondary" id="openMasterSelectModalBtn">
+                                    <i data-lucide="database"></i> Select Master Rides
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <textarea id="rawNewsletterInput" rows="18" placeholder="Paste single or multiple event submissions here... E.g.
+
+Bike MS: Round-Up Ride
+Saturday, May 2 – Sunday, May 3, 2026
+Fort Worth, TX
+Presented as part of the largest fundraising cycling series in the world...
+Website: www.bikemsdfw.org
+Registration Link: www.bikemsdfw.org
+
+5th Annual Gear Up Against Kids Cancer
+Saturday, May 2, 2026
+Floresville, TX
+This impactful ride supports pediatric cancer research...
+Website: GearUpAgainstKidsCancer.org
+Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids-cancer/2026/register"></textarea>
+                        </div>
+
+                        <div class="form-actions flex-between">
+                            <button class="btn btn-secondary" id="clearNewsletterBtn">
+                                <i data-lucide="trash-2"></i> Clear Input
+                            </button>
+                            <button class="btn btn-primary" id="generateNewsletterBtn">
+                                <i data-lucide="sparkles"></i> Generate Newsletter Summary
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Formatted Newsletter Output -->
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2><i data-lucide="send"></i> Polished Newsletter Summary</h2>
+                                <p>Ready to copy-paste into Mailchimp, Substack, Word, or Email.</p>
+                            </div>
+                            <div class="output-mode-buttons">
+                                <button class="btn btn-small btn-outline active" id="viewNewsRichBtn"><i data-lucide="link"></i> Rich Text</button>
+                                <button class="btn btn-small btn-outline" id="viewNewsMarkdownBtn"><i data-lucide="file-code"></i> Markdown</button>
+                            </div>
+                        </div>
+
+                        <!-- Rich Text Newsletter Box -->
+                        <div id="newsRichModeBox">
+                            <div class="code-header" style="margin-bottom: 8px;">
+                                <span class="code-lang">Rich Text with Hyperlinks (Editable)</span>
+                                <button class="btn btn-small btn-primary" id="copyNewsRichBtn">
+                                    <i data-lucide="copy"></i> Copy Rich Text (With Hyperlinks)
+                                </button>
+                            </div>
+                            <div id="newsletterRichOutput" class="rich-text-editor" contenteditable="true">
+                                <p class="placeholder-text">Generated newsletter with live blue links will appear here after clicking "Generate Newsletter Summary"...</p>
+                            </div>
+                        </div>
+
+                        <!-- Markdown Newsletter Box -->
+                        <div id="newsMarkdownModeBox" class="hidden">
+                            <div class="code-header" style="margin-bottom: 8px;">
+                                <span class="code-lang">Markdown Format</span>
+                                <button class="btn btn-small btn-primary" id="copyNewsMarkdownBtn">
+                                    <i data-lucide="copy"></i> Copy Markdown Text
+                                </button>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="newsletterMarkdownOutput" rows="18" placeholder="Markdown newsletter text will appear here..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="card-footer-info" style="margin-top: 12px;">
+                            <i data-lucide="info"></i> <strong>Tip:</strong> Clicking "Copy Rich Text" copies formatted text with clickable hyperlinks directly to your clipboard!
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
@@ -349,6 +443,26 @@ About the Ride:
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="closeModalFooterBtn">Close</button>
                 <button class="btn btn-primary" id="copyModalCodeBtn"><i data-lucide="copy"></i> Copy All HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Ride Select Modal -->
+    <div class="modal" id="masterSelectModal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3><i data-lucide="database"></i> Select Rides from 2026 Master Table</h3>
+                <button class="close-modal" id="closeMasterSelectModalBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Check the rides you want to include in your 15-day newsletter summary:</p>
+                <div id="masterRidesSelectList" class="master-select-list">
+                    <!-- Dynamic list of checkboxes -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeMasterSelectModalFooterBtn">Cancel</button>
+                <button class="btn btn-primary" id="confirmMasterSelectBtn"><i data-lucide="sparkles"></i> Insert Selected into Newsletter</button>
             </div>
         </div>
     </div>

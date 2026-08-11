@@ -1231,6 +1231,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initMasterTable();
     initTheme();
     initModal();
+    initNewsletterBuilder();
+    initMasterSelectModal();
 });
 
 /* ==========================================
@@ -2324,4 +2326,256 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 2800);
+}
+
+/* ==========================================
+   6. BI-WEEKLY NEWSLETTER BUILDER
+   ========================================== */
+const SAMPLE_NEWSLETTER_DATA = `Bike MS: Round-Up Ride – Saturday, May 2 – Sunday, May 3, 2026 – Fort Worth, TX
+Presented as part of the largest fundraising cycling series in the world, this two-day ride begins and ends at Sundance Square in Downtown Fort Worth. Cyclists will journey through scenic Texas countryside, including routes along the Paluxy River, Glen Rose hill country, pecan plantations, and Lake Benbrook. With route options ranging from 35 to 100 miles, this fully supported event combines a rewarding physical challenge with a powerful mission to end Multiple Sclerosis.
+Website: www.bikemsdfw.org
+Registration Link: www.bikemsdfw.org
+
+5th Annual Gear Up Against Kids Cancer – Saturday, May 2, 2026 – Floresville, TX
+This impactful ride supports pediatric cancer research at the Greehey Children’s Cancer Research Institute in San Antonio. Since its founding, nearly 2,000 cyclists have ridden over 100,000 miles and raised more than $75,000 for life-saving research. Riders can choose from 28, 40, or 60-mile routes through the scenic roads of Wilson County. Every mile contributes directly to advancing treatments for children battling cancer, with 100% of funds staying local.
+Website: GearUpAgainstKidsCancer.org
+Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids-cancer/2026/register
+
+STAMPEDE on the Chisholm Trail Metric Century 2026 – Saturday, May 9, 2026 – Belton, TX
+Hosted in Belton, this scenic ride takes cyclists along the historic Chisholm Trail through Bell County’s countryside and trails near Nolan Creek. With route options of 12, 30, 55, and 62 miles, the event offers a well-supported experience with rest stops, nutrition, and SAG support. Riders also enjoy pre-ride refreshments, a complimentary hot dog lunch, and a fun community atmosphere supporting local Lions Club initiatives.
+Website: BeltonLionsClub.com
+Registration Link: https://www.active.com/belton-tx/cycling/races/stampede-on-the-chisholm-trail-metric-century-2026`;
+
+function initNewsletterBuilder() {
+    const rawInput = document.getElementById('rawNewsletterInput');
+    const richOutput = document.getElementById('newsletterRichOutput');
+    const markdownOutput = document.getElementById('newsletterMarkdownOutput');
+    const generateBtn = document.getElementById('generateNewsletterBtn');
+    const loadSampleBtn = document.getElementById('loadSampleNewsletterBtn');
+    const clearBtn = document.getElementById('clearNewsletterBtn');
+    const copyRichBtn = document.getElementById('copyNewsRichBtn');
+    const copyMarkdownBtn = document.getElementById('copyNewsMarkdownBtn');
+
+    const viewRichBtn = document.getElementById('viewNewsRichBtn');
+    const viewMarkdownBtn = document.getElementById('viewNewsMarkdownBtn');
+    const newsRichModeBox = document.getElementById('newsRichModeBox');
+    const newsMarkdownModeBox = document.getElementById('newsMarkdownModeBox');
+
+    viewRichBtn.addEventListener('click', () => {
+        viewRichBtn.classList.add('active');
+        viewMarkdownBtn.classList.remove('active');
+        newsRichModeBox.classList.remove('hidden');
+        newsMarkdownModeBox.classList.add('hidden');
+    });
+
+    viewMarkdownBtn.addEventListener('click', () => {
+        viewMarkdownBtn.classList.add('active');
+        viewRichBtn.classList.remove('active');
+        newsMarkdownModeBox.classList.remove('hidden');
+        newsRichModeBox.classList.add('hidden');
+    });
+
+    loadSampleBtn.addEventListener('click', () => {
+        rawInput.value = SAMPLE_NEWSLETTER_DATA;
+        generateNewsletter();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        rawInput.value = '';
+        markdownOutput.value = '';
+        richOutput.innerHTML = '<p class="placeholder-text">Generated newsletter with live blue links will appear here after clicking "Generate Newsletter Summary"...</p>';
+    });
+
+    generateBtn.addEventListener('click', generateNewsletter);
+
+    copyRichBtn.addEventListener('click', () => {
+        const htmlToCopy = richOutput.innerHTML;
+        const textToCopy = richOutput.innerText;
+        if (!htmlToCopy || htmlToCopy.includes('placeholder-text')) return;
+
+        copyRichTextToClipboard(htmlToCopy, textToCopy).then(() => {
+            showToast("Newsletter Rich Text with live links copied!");
+        });
+    });
+
+    copyMarkdownBtn.addEventListener('click', () => {
+        if (!markdownOutput.value.trim()) return;
+        navigator.clipboard.writeText(markdownOutput.value).then(() => {
+            showToast("Newsletter Markdown copied to clipboard!");
+        });
+    });
+
+    function generateNewsletter() {
+        const text = rawInput.value.trim();
+        if (!text) {
+            markdownOutput.value = '';
+            richOutput.innerHTML = '<p class="placeholder-text">Generated newsletter with live blue links will appear here...</p>';
+            return;
+        }
+
+        const items = parseNewsletterItems(text);
+        const richHtml = buildNewsletterRichHtml(items);
+        const markdown = buildNewsletterMarkdown(items);
+
+        richOutput.innerHTML = richHtml;
+        markdownOutput.value = markdown;
+    }
+}
+
+/**
+ * Parses raw text into individual newsletter ride items
+ */
+function parseNewsletterItems(text) {
+    const blocks = text.split(/\n\s*\n/);
+    const items = [];
+
+    blocks.forEach(block => {
+        const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return;
+
+        let titleLine = lines[0];
+        let website = '';
+        let regLink = '';
+        let descLines = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.match(/^Website:\s*/i)) {
+                website = line.replace(/^Website:\s*/i, '').trim();
+            } else if (line.match(/^Registration Link:\s*|^Register:\s*/i)) {
+                regLink = line.replace(/^Registration Link:\s*|^Register:\s*/i, '').trim();
+            } else {
+                descLines.push(line);
+            }
+        }
+
+        website = cleanMarkdownLink(website);
+        regLink = cleanMarkdownLink(regLink);
+
+        items.push({
+            header: titleLine,
+            summary: descLines.join(' '),
+            website: website,
+            regLink: regLink
+        });
+    });
+
+    return items;
+}
+
+function cleanMarkdownLink(str) {
+    if (!str) return '';
+    const match = str.match(/\[(.*?)\]\((.*?)\)/);
+    if (match) return match[2] || match[1];
+    return str;
+}
+
+function ensureHttp(url) {
+    if (!url) return '';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        return 'http://' + url;
+    }
+    return url;
+}
+
+function buildNewsletterRichHtml(items) {
+    let html = '';
+    items.forEach(item => {
+        html += `<p><strong>${item.header}</strong><br>\n`;
+        if (item.summary) {
+            html += `${item.summary}<br>\n`;
+        }
+        if (item.website) {
+            const href = ensureHttp(item.website);
+            html += `<strong>Website:</strong> <a href="${href}" target="_blank" rel="noopener">${item.website}</a><br>\n`;
+        }
+        if (item.regLink) {
+            const href = ensureHttp(item.regLink);
+            html += `<strong>Registration Link:</strong> <a href="${href}" target="_blank" rel="noopener">${item.regLink}</a><br>\n`;
+        }
+        html += `</p>\n\n`;
+    });
+    return html.trim();
+}
+
+function buildNewsletterMarkdown(items) {
+    let md = '';
+    items.forEach(item => {
+        md += `**${item.header}**\n`;
+        if (item.summary) md += `${item.summary}\n`;
+        if (item.website) {
+            const href = ensureHttp(item.website);
+            md += `Website: [${item.website}](${href})\n`;
+        }
+        if (item.regLink) {
+            const href = ensureHttp(item.regLink);
+            md += `Registration Link: [${item.regLink}](${href})\n`;
+        }
+        md += `\n`;
+    });
+    return md.trim();
+}
+
+function initMasterSelectModal() {
+    const modal = document.getElementById('masterSelectModal');
+    const openBtn = document.getElementById('openMasterSelectModalBtn');
+    const closeBtn = document.getElementById('closeMasterSelectModalBtn');
+    const closeFooterBtn = document.getElementById('closeMasterSelectModalFooterBtn');
+    const confirmBtn = document.getElementById('confirmMasterSelectBtn');
+    const selectList = document.getElementById('masterRidesSelectList');
+    const rawNewsletterInput = document.getElementById('rawNewsletterInput');
+
+    openBtn.addEventListener('click', () => {
+        renderMasterSelectList();
+        modal.classList.add('open');
+    });
+
+    closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+    closeFooterBtn.addEventListener('click', () => modal.classList.remove('open'));
+
+    confirmBtn.addEventListener('click', () => {
+        const checkedIndexes = Array.from(selectList.querySelectorAll('input[type="checkbox"]:checked')).map(cb => parseInt(cb.value, 10));
+
+        if (checkedIndexes.length === 0) {
+            alert("Please check at least one ride.");
+            return;
+        }
+
+        let appendedText = '';
+        checkedIndexes.forEach(idx => {
+            const ride = masterRidesList[idx];
+            if (ride) {
+                const urlMatch = ride.html.match(/href="([^"]+)"/);
+                const url = urlMatch ? urlMatch[1] : '';
+
+                appendedText += `${ride.title} – ${ride.date} – ${ride.location}\n`;
+                appendedText += `Join us for the annual ${ride.title} in ${ride.location}! Offering scenic routes for all cycling skill levels, fully supported rest stops, and a great community atmosphere.\n`;
+                if (url) {
+                    appendedText += `Website: ${url}\n`;
+                    appendedText += `Registration Link: ${url}\n`;
+                }
+                appendedText += `\n`;
+            }
+        });
+
+        rawNewsletterInput.value = (rawNewsletterInput.value.trim() + '\n\n' + appendedText).trim();
+        modal.classList.remove('open');
+
+        document.getElementById('generateNewsletterBtn').click();
+    });
+
+    function renderMasterSelectList() {
+        let html = '';
+        masterRidesList.forEach((ride, idx) => {
+            html += `
+            <label class="master-select-item">
+                <input type="checkbox" value="${idx}">
+                <div class="master-select-info">
+                    <strong>${ride.title} ${ride.isFeatured ? '(Featured)' : ''}</strong>
+                    <span>${ride.date} • ${ride.location}</span>
+                </div>
+            </label>`;
+        });
+        selectList.innerHTML = html;
+    }
 }

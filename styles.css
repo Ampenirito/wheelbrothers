@@ -989,4 +989,54 @@ code {
     transform: translateX(16px);
 }
 
+/* --- Master Select List Modal --- */
+.master-select-list {
+    max-height: 360px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.master-select-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.master-select-item:hover {
+    background-color: rgba(240, 146, 23, 0.05);
+    border-color: var(--brand-orange);
+}
+
+.master-select-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand-orange);
+    cursor: pointer;
+}
+
+.master-select-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.master-select-info strong {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.master-select-info span {
+    font-size: 0.775rem;
+    color: var(--text-secondary);
+}
+
+
 
