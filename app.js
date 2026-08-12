@@ -2331,20 +2331,21 @@ function showToast(message) {
 /* ==========================================
    6. BI-WEEKLY NEWSLETTER BUILDER
    ========================================== */
-const SAMPLE_NEWSLETTER_DATA = `Bike MS: Round-Up Ride – Saturday, May 2 – Sunday, May 3, 2026 – Fort Worth, TX
+const SAMPLE_NEWSLETTER_DATA = `Blazin’ Saddle 75 Bicycle Rally – Saturday, August 1, 2026 – Granbury, TX
+
+The Blazin’ Saddle 75 Bicycle Rally returns for its 18th annual edition, offering one of North Texas’ premier cycling experiences through the scenic countryside of Granbury. Known for challenging climbs such as Skulls Crossing, Mongo’s Mountain, and The Peak, this well-supported event is a favorite training ride for cyclists preparing for the Hotter’ N Hell 100 and other endurance events. Riders can choose from 20, 47, 62, or 75-mile routes while enjoying fully stocked rest stops, SAG support, and outstanding volunteer hospitality.
+
+Website: https://blazinsaddle75.com/
+
+Registration Link: https://www.bikesignup.com/Race/TX/Granbury/BlazinSaddle75BicycleRally
+
+Bike MS: Round-Up Ride – Saturday, May 2 – Sunday, May 3, 2026 – Fort Worth, TX
+
 Presented as part of the largest fundraising cycling series in the world, this two-day ride begins and ends at Sundance Square in Downtown Fort Worth. Cyclists will journey through scenic Texas countryside, including routes along the Paluxy River, Glen Rose hill country, pecan plantations, and Lake Benbrook. With route options ranging from 35 to 100 miles, this fully supported event combines a rewarding physical challenge with a powerful mission to end Multiple Sclerosis.
-Website: www.bikemsdfw.org
-Registration Link: www.bikemsdfw.org
 
-5th Annual Gear Up Against Kids Cancer – Saturday, May 2, 2026 – Floresville, TX
-This impactful ride supports pediatric cancer research at the Greehey Children’s Cancer Research Institute in San Antonio. Since its founding, nearly 2,000 cyclists have ridden over 100,000 miles and raised more than $75,000 for life-saving research. Riders can choose from 28, 40, or 60-mile routes through the scenic roads of Wilson County. Every mile contributes directly to advancing treatments for children battling cancer, with 100% of funds staying local.
-Website: GearUpAgainstKidsCancer.org
-Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids-cancer/2026/register
+Website: http://www.bikemsdfw.org
 
-STAMPEDE on the Chisholm Trail Metric Century 2026 – Saturday, May 9, 2026 – Belton, TX
-Hosted in Belton, this scenic ride takes cyclists along the historic Chisholm Trail through Bell County’s countryside and trails near Nolan Creek. With route options of 12, 30, 55, and 62 miles, the event offers a well-supported experience with rest stops, nutrition, and SAG support. Riders also enjoy pre-ride refreshments, a complimentary hot dog lunch, and a fun community atmosphere supporting local Lions Club initiatives.
-Website: BeltonLionsClub.com
-Registration Link: https://www.active.com/belton-tx/cycling/races/stampede-on-the-chisholm-trail-metric-century-2026`;
+Registration Link: http://www.bikemsdfw.org`;
 
 function initNewsletterBuilder() {
     const rawInput = document.getElementById('rawNewsletterInput');
@@ -2480,38 +2481,48 @@ function ensureHttp(url) {
 
 function buildNewsletterRichHtml(items) {
     let html = '';
-    items.forEach(item => {
-        html += `<p><strong>${item.header}</strong><br>\n`;
+    items.forEach((item, index) => {
+        const headerText = item.header.replace(/^\*\*|\*\*$/g, '').trim();
+
+        html += `<p>${headerText}</p>\n`;
         if (item.summary) {
-            html += `${item.summary}<br>\n`;
+            html += `<p>${item.summary}</p>\n`;
         }
         if (item.website) {
             const href = ensureHttp(item.website);
-            html += `<strong>Website:</strong> <a href="${href}" target="_blank" rel="noopener">${item.website}</a><br>\n`;
+            html += `<p>Website: <a href="${href}" target="_blank" rel="noopener">${item.website}</a></p>\n`;
         }
         if (item.regLink) {
             const href = ensureHttp(item.regLink);
-            html += `<strong>Registration Link:</strong> <a href="${href}" target="_blank" rel="noopener">${item.regLink}</a><br>\n`;
+            html += `<p>Registration Link: <a href="${href}" target="_blank" rel="noopener">${item.regLink}</a></p>\n`;
         }
-        html += `</p>\n\n`;
+
+        if (index < items.length - 1) {
+            html += `<br>\n`;
+        }
     });
     return html.trim();
 }
 
 function buildNewsletterMarkdown(items) {
     let md = '';
-    items.forEach(item => {
-        md += `**${item.header}**\n`;
-        if (item.summary) md += `${item.summary}\n`;
+    items.forEach((item, index) => {
+        const headerText = item.header.replace(/^\*\*|\*\*$/g, '').trim();
+
+        md += `${headerText}\n\n`;
+        if (item.summary) md += `${item.summary}\n\n`;
         if (item.website) {
             const href = ensureHttp(item.website);
-            md += `Website: [${item.website}](${href})\n`;
+            md += `Website: ${item.website}\n\n`;
         }
         if (item.regLink) {
             const href = ensureHttp(item.regLink);
-            md += `Registration Link: [${item.regLink}](${href})\n`;
+            md += `Registration Link: ${item.regLink}\n\n`;
         }
-        md += `\n`;
+
+        if (index < items.length - 1) {
+            md += `\n`;
+        }
     });
     return md.trim();
 }
@@ -2548,13 +2559,12 @@ function initMasterSelectModal() {
                 const urlMatch = ride.html.match(/href="([^"]+)"/);
                 const url = urlMatch ? urlMatch[1] : '';
 
-                appendedText += `${ride.title} – ${ride.date} – ${ride.location}\n`;
-                appendedText += `Join us for the annual ${ride.title} in ${ride.location}! Offering scenic routes for all cycling skill levels, fully supported rest stops, and a great community atmosphere.\n`;
+                appendedText += `${ride.title} – ${ride.date} – ${ride.location}\n\n`;
+                appendedText += `Join us for the annual ${ride.title} in ${ride.location}! Offering scenic routes for all cycling skill levels, fully supported rest stops, and a great community atmosphere.\n\n`;
                 if (url) {
-                    appendedText += `Website: ${url}\n`;
-                    appendedText += `Registration Link: ${url}\n`;
+                    appendedText += `Website: ${url}\n\n`;
+                    appendedText += `Registration Link: ${url}\n\n`;
                 }
-                appendedText += `\n`;
             }
         });
 
