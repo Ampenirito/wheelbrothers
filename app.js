@@ -2425,43 +2425,113 @@ function initNewsletterBuilder() {
 
 /**
  * Parses raw text into individual newsletter ride items
+ * Ensures strict 4-part structure: Header, Summary, Website, Registration Link
  */
 function parseNewsletterItems(text) {
-    const blocks = text.split(/\n\s*\n/);
+    const allLines = text.split('\n').map(l => l.trim());
+    const blocks = [];
+    let currentBlockLines = [];
+
+    for (let i = 0; i < allLines.length; i++) {
+        const line = allLines[i];
+        if (!line) continue;
+
+        // Start a new block if line looks like a new header AND current block already has links
+        if (currentBlockLines.length > 0) {
+            const hasWebsiteOrReg = currentBlockLines.some(l => l.match(/^Website:|^Registration Link:|^Register:/i));
+            const isNewHeaderCandidate = line.includes(' – ') || line.includes(' - ') || line.match(/^([A-Z0-9].{3,60})$/);
+
+            if (hasWebsiteOrReg && isNewHeaderCandidate && !line.match(/^Website:|^Registration Link:|^Register:|^Email:|^Phone:/i)) {
+                blocks.push(currentBlockLines);
+                currentBlockLines = [];
+            }
+        }
+        currentBlockLines.push(line);
+    }
+    if (currentBlockLines.length > 0) {
+        blocks.push(currentBlockLines);
+    }
+
     const items = [];
 
-    blocks.forEach(block => {
-        const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length === 0) return;
-
-        let titleLine = lines[0];
+    blocks.forEach(lines => {
+        let title = '';
+        let date = '';
+        let location = '';
         let website = '';
         let regLink = '';
-        let descLines = [];
+        let mainParagraphs = [];
 
-        for (let i = 1; i < lines.length; i++) {
+        for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            if (line.match(/^Website:\s*/i)) {
+
+            if (line.match(/^Date:\s*/i)) {
+                date = line.replace(/^Date:\s*/i, '').trim();
+            } else if (line.match(/^Location:\s*/i)) {
+                location = cleanLocationHeader(line.replace(/^Location:\s*/i, '').trim());
+            } else if (line.match(/^Website:\s*/i)) {
                 website = line.replace(/^Website:\s*/i, '').trim();
             } else if (line.match(/^Registration Link:\s*|^Register:\s*/i)) {
                 regLink = line.replace(/^Registration Link:\s*|^Register:\s*/i, '').trim();
+            } else if (line.match(/^Phone:|^Email:|^Spaghetti Dinner|^Saturday Breakfast|^Chupacabra:|^Triple Threat:|^Quadzilla:|^Chip timing|^Mountain Bike Races|^Gravel Grind Events|^Trail Runs|^Wee-Chi-Tah|^Dining and Social|^Multi-Event Challenges|^Timing and Logistics|^Contact Information|^Event Information$/i)) {
+                // Ignore ancillary logistical sub-headings
+                continue;
+            } else if (!title) {
+                if (line.includes(' – ') || line.includes(' - ')) {
+                    title = line;
+                } else if (!line.toLowerCase().includes('the premier') && line.length < 80) {
+                    title = line;
+                } else {
+                    mainParagraphs.push(line);
+                }
             } else {
-                descLines.push(line);
+                if (line.toLowerCase().startsWith('the premier') || line.toLowerCase().startsWith('presented by')) {
+                    if (line.length < 100 && !line.includes('.')) continue;
+                }
+                mainParagraphs.push(line);
             }
+        }
+
+        // Build header line: Event Name – Date – Location
+        let headerLine = '';
+        if (title.includes(' – ') || title.includes(' - ')) {
+            headerLine = title;
+        } else {
+            let hTitle = title || 'Cycling Event';
+            let hDate = date || '';
+            let hLoc = location || '';
+
+            headerLine = hTitle;
+            if (hDate) headerLine += ` – ${hDate}`;
+            if (hLoc) headerLine += ` – ${hLoc}`;
         }
 
         website = cleanMarkdownLink(website);
         regLink = cleanMarkdownLink(regLink);
 
+        // Find 1 core overview paragraph for summary
+        let summaryText = '';
+        if (mainParagraphs.length > 0) {
+            const mainOverview = mainParagraphs.find(p => p.length > 100) || mainParagraphs[0];
+            summaryText = mainOverview;
+        }
+
         items.push({
-            header: titleLine,
-            summary: descLines.join(' '),
+            header: headerLine,
+            summary: summaryText,
             website: website,
             regLink: regLink
         });
     });
 
     return items;
+}
+
+function cleanLocationHeader(locStr) {
+    if (!locStr) return '';
+    let loc = locStr.replace(/\s*\(.*?\)/g, '').trim();
+    loc = loc.replace(/, Texas$/i, ', TX').replace(/, Oklahoma$/i, ', OK');
+    return loc;
 }
 
 function cleanMarkdownLink(str) {
@@ -2484,17 +2554,17 @@ function buildNewsletterRichHtml(items) {
     items.forEach((item, index) => {
         const headerText = item.header.replace(/^\*\*|\*\*$/g, '').trim();
 
-        html += `<p>${headerText}</p>\n`;
+        html += `<p>${headerText}</p>\n\n`;
         if (item.summary) {
-            html += `<p>${item.summary}</p>\n`;
+            html += `<p>${item.summary}</p>\n\n`;
         }
         if (item.website) {
             const href = ensureHttp(item.website);
-            html += `<p>Website: <a href="${href}" target="_blank" rel="noopener">${item.website}</a></p>\n`;
+            html += `<p>Website: <a href="${href}" target="_blank" rel="noopener">${item.website}</a></p>\n\n`;
         }
         if (item.regLink) {
             const href = ensureHttp(item.regLink);
-            html += `<p>Registration Link: <a href="${href}" target="_blank" rel="noopener">${item.regLink}</a></p>\n`;
+            html += `<p>Registration Link: <a href="${href}" target="_blank" rel="noopener">${item.regLink}</a></p>\n\n`;
         }
 
         if (index < items.length - 1) {
@@ -2512,11 +2582,9 @@ function buildNewsletterMarkdown(items) {
         md += `${headerText}\n\n`;
         if (item.summary) md += `${item.summary}\n\n`;
         if (item.website) {
-            const href = ensureHttp(item.website);
             md += `Website: ${item.website}\n\n`;
         }
         if (item.regLink) {
-            const href = ensureHttp(item.regLink);
             md += `Registration Link: ${item.regLink}\n\n`;
         }
 
