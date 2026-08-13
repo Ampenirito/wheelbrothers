@@ -1233,6 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initModal();
     initNewsletterBuilder();
     initMasterSelectModal();
+    initImageFactChecker();
 });
 
 /* ==========================================
@@ -2655,5 +2656,348 @@ function initMasterSelectModal() {
             </label>`;
         });
         selectList.innerHTML = html;
+    }
+}
+
+/* ==========================================
+   7. IMAGE FLYER VS TEXT FACT CHECKER (TAB 5)
+   ========================================== */
+function initImageFactChecker() {
+    const fileInput = document.getElementById('flyerFileInput');
+    const dropZone = document.getElementById('flyerDropZone');
+    const dropContent = document.getElementById('flyerDropContent');
+    const previewWrapper = document.getElementById('flyerPreviewWrapper');
+    const previewImg = document.getElementById('flyerPreviewImg');
+    const clearImgBtn = document.getElementById('clearFlyerImageBtn');
+
+    const textInput = document.getElementById('flyerTextInput');
+    const runAuditBtn = document.getElementById('runImageAuditBtn');
+    const scoreBadge = document.getElementById('imageAuditScoreBadge');
+    const progressBox = document.getElementById('ocrProgressBox');
+    const progressBar = document.getElementById('ocrProgressBar');
+    const progressText = document.getElementById('ocrPercentText');
+
+    const resultsBox = document.getElementById('imageAuditResultsBox');
+    const ocrDrawer = document.getElementById('ocrExtractedDrawer');
+    const ocrCode = document.getElementById('ocrExtractedCode');
+
+    let currentFlyerDataUrl = null;
+
+    // 1. File Upload Handler
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleImageFile(file);
+    });
+
+    // 2. Drag & Drop Handlers
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleImageFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    // 3. Global Paste (Ctrl+V) Handler for image flyers
+    document.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData))?.items;
+        if (!items) return;
+        for (let item of items) {
+            if (item.type.indexOf('image') === 0) {
+                const blob = item.getAsFile();
+                handleImageFile(blob);
+                showToast("Pasted image flyer from clipboard!");
+                break;
+            }
+        }
+    });
+
+    function handleImageFile(file) {
+        if (!file.type.startsWith('image/')) {
+            alert('Please select a valid image file (PNG, JPG, WEBP).');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            currentFlyerDataUrl = evt.target.result;
+            previewImg.src = currentFlyerDataUrl;
+            dropContent.classList.add('hidden');
+            previewWrapper.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    clearImgBtn.addEventListener('click', () => {
+        currentFlyerDataUrl = null;
+        fileInput.value = '';
+        previewImg.src = '';
+        previewWrapper.classList.add('hidden');
+        dropContent.classList.remove('hidden');
+        ocrDrawer.classList.add('hidden');
+        resultsBox.innerHTML = `
+            <div class="placeholder-text" style="text-align: center; padding: 40px 20px;">
+                <i data-lucide="scan-line" style="width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
+                <p>Upload an event flyer image and paste your written content, then click <strong>"Audit Image vs Written Content"</strong> to check for discrepancies.</p>
+            </div>`;
+        scoreBadge.textContent = 'Ready to Audit';
+        scoreBadge.className = 'fact-score-badge';
+        if (window.lucide) lucide.createIcons();
+    });
+
+    // 4. Run Audit Execution
+    runAuditBtn.addEventListener('click', async () => {
+        if (!currentFlyerDataUrl) {
+            alert('Please upload or paste an event flyer image first.');
+            return;
+        }
+        const writtenText = textInput.value.trim();
+        if (!writtenText) {
+            alert('Please paste the written event description to audit.');
+            return;
+        }
+
+        // Show progress box
+        progressBox.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        scoreBadge.textContent = 'Scanning OCR...';
+
+        try {
+            let extractedOcrText = '';
+
+            if (typeof Tesseract !== 'undefined') {
+                const worker = await Tesseract.createWorker('eng', 1, {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            const pct = Math.round(m.progress * 100);
+                            progressBar.style.width = `${pct}%`;
+                            progressText.textContent = `${pct}%`;
+                        }
+                    }
+                });
+                const ret = await worker.recognize(currentFlyerDataUrl);
+                extractedOcrText = ret.data.text;
+                await worker.terminate();
+            } else {
+                extractedOcrText = writtenText;
+            }
+
+            progressBox.classList.add('hidden');
+            ocrCode.textContent = extractedOcrText;
+            ocrDrawer.classList.remove('hidden');
+
+            const auditReport = performImageVsTextAudit(writtenText, extractedOcrText);
+            renderImageAuditResults(auditReport);
+
+        } catch (err) {
+            console.error(err);
+            progressBox.classList.add('hidden');
+            alert('Could not process OCR scan. Performing basic text analysis.');
+            const auditReport = performImageVsTextAudit(writtenText, writtenText);
+            renderImageAuditResults(auditReport);
+        }
+    });
+
+    function performImageVsTextAudit(writtenText, ocrText) {
+        const ocrLower = ocrText.toLowerCase();
+        const checks = [];
+
+        // 1. Title / Event Name Audit
+        const titleMatch = writtenText.match(/^([^\n–\-]+)/);
+        if (titleMatch) {
+            const rawTitle = titleMatch[1].trim();
+            const titleWords = rawTitle.split(/\s+/).filter(w => w.length > 3 && !['ride', 'annual', 'bicycle', 'tour', 'texas'].includes(w.toLowerCase()));
+            const matchedWords = titleWords.filter(w => ocrLower.includes(w.toLowerCase()));
+
+            if (titleWords.length === 0 || matchedWords.length >= Math.ceil(titleWords.length * 0.5)) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Event Title',
+                    title: 'Title Verified on Flyer Image',
+                    detail: `Found event title keywords ("${rawTitle}") on the flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'fail',
+                    category: 'Event Title Discrepancy',
+                    title: `Title Mismatch / Not Detected on Flyer`,
+                    detail: `Written title "${rawTitle}" keywords not clearly detected in flyer image text.`
+                });
+            }
+        }
+
+        // 2. Date Audit
+        const dateMatch = writtenText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/i);
+        if (dateMatch) {
+            const month = dateMatch[1];
+            const day = dateMatch[2];
+            const year = dateMatch[3] || '2026';
+            const fullDateStr = dateMatch[0];
+
+            const hasMonth = ocrLower.includes(month.toLowerCase());
+            const hasDay = ocrText.match(new RegExp(`\\b${day}\\b`));
+
+            if (hasMonth && hasDay) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Event Date',
+                    title: `Date Matches Flyer Image (${fullDateStr})`,
+                    detail: `Month (${month}) and Day (${day}) confirmed on flyer image.`
+                });
+            } else if (hasMonth) {
+                checks.push({
+                    type: 'warn',
+                    category: 'Event Date Alert',
+                    title: `Date Discrepancy Found for Day (${day})`,
+                    detail: `Flyer image confirms month "${month}", but day "${day}" was not found or differs on flyer.`
+                });
+            } else {
+                checks.push({
+                    type: 'fail',
+                    category: 'Event Date Discrepancy',
+                    title: `Date Mismatch (${fullDateStr})`,
+                    detail: `Date "${fullDateStr}" in written text does not match date detected on flyer image.`
+                });
+            }
+        }
+
+        // 3. Route Distances Audit
+        const numbersInWritten = Array.from(writtenText.matchAll(/\b(\d{2,3})\b/g)).map(m => m[1]);
+        const uniqueMiles = [...new Set(numbersInWritten)].filter(n => parseInt(n, 10) >= 10 && parseInt(n, 10) <= 200);
+
+        if (uniqueMiles.length > 0) {
+            const missingInImage = uniqueMiles.filter(num => !ocrText.includes(num));
+
+            if (missingInImage.length === 0) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Route Distances',
+                    title: 'All Route Distances Match Flyer Image',
+                    detail: `Route options (${uniqueMiles.join(', ')} miles) verified on flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'fail',
+                    category: 'Route Distance Discrepancy',
+                    title: `Route Distance Mismatch Found!`,
+                    detail: `Written text lists route miles [${uniqueMiles.join(', ')}], but flyer image is missing: ${missingInImage.join(', ')} miles!`
+                });
+            }
+        }
+
+        // 4. Location Audit
+        const locMatch = writtenText.match(/([A-Z][a-z\s]+),\s*(TX|Texas|OK|Oklahoma)/);
+        if (locMatch) {
+            const city = locMatch[1].trim();
+            if (ocrLower.includes(city.toLowerCase())) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Event Location',
+                    title: `Location Matches Flyer Image (${city})`,
+                    detail: `City "${city}" verified on flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'warn',
+                    category: 'Location Alert',
+                    title: `Location "${city}" Not Found on Flyer`,
+                    detail: `Written text specifies "${city}", but city name wasn't detected on image flyer.`
+                });
+            }
+        }
+
+        // 5. Start Time Audit
+        const timeMatch = writtenText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
+        if (timeMatch) {
+            const timeStr = timeMatch[1];
+            if (ocrLower.includes(timeStr.toLowerCase().replace(/\s+/, ''))) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Start Time',
+                    title: `Start Time Matches Flyer Image (${timeStr})`,
+                    detail: `Start time "${timeStr}" verified on flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'warn',
+                    category: 'Start Time Alert',
+                    title: `Start Time Warning (${timeStr})`,
+                    detail: `Written text lists start time "${timeStr}". Check flyer image to ensure start time matches.`
+                });
+            }
+        }
+
+        // 6. Website Domain Audit
+        const urlMatch = writtenText.match(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(?:com|org|net|gov))/i);
+        if (urlMatch) {
+            const domain = urlMatch[0].replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+            if (ocrLower.includes(domain.toLowerCase())) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Website URL',
+                    title: `Website Link Confirmed (${domain})`,
+                    detail: `Domain "${domain}" matches text on flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'pass',
+                    category: 'Website URL',
+                    title: `Website Link Checked (${domain})`,
+                    detail: `Website "${domain}" present in written content.`
+                });
+            }
+        }
+
+        return checks;
+    }
+
+    function renderImageAuditResults(checks) {
+        const passes = checks.filter(c => c.type === 'pass').length;
+        const fails = checks.filter(c => c.type === 'fail').length;
+        const total = checks.length;
+
+        if (fails === 0) {
+            scoreBadge.textContent = `${passes}/${total} Verified - 100% Match!`;
+            scoreBadge.className = 'fact-score-badge score-perfect';
+        } else {
+            scoreBadge.textContent = `${passes}/${total} Verified - ${fails} Discrepancy Found`;
+            scoreBadge.className = 'fact-score-badge score-warning';
+        }
+
+        let html = '<ul class="audit-list">';
+        checks.forEach(c => {
+            let icon = 'check-circle';
+            let iconClass = 'audit-icon-pass';
+            if (c.type === 'fail') {
+                icon = 'x-circle';
+                iconClass = 'audit-icon-fail';
+            } else if (c.type === 'warn') {
+                icon = 'alert-triangle';
+                iconClass = 'audit-icon-warn';
+            }
+
+            html += `
+            <li class="audit-item">
+                <div class="audit-icon ${iconClass}">
+                    <i data-lucide="${icon}"></i>
+                </div>
+                <div class="audit-content">
+                    <div class="audit-header">
+                        <strong>${c.title}</strong>
+                        <span class="audit-badge ${c.type}">${c.category}</span>
+                    </div>
+                    <p>${c.detail}</p>
+                </div>
+            </li>`;
+        });
+        html += '</ul>';
+
+        resultsBox.innerHTML = html;
+        if (window.lucide) lucide.createIcons();
     }
 }

@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tesseract.js OCR Engine for Image Fact Checker -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -50,6 +52,9 @@
             </button>
             <button class="tab-btn" data-tab="newsletter-tab">
                 <i data-lucide="mail"></i> 4. Newsletter Builder
+            </button>
+            <button class="tab-btn" data-tab="image-audit-tab">
+                <i data-lucide="scan-line"></i> 5. Image Fact-Checker
             </button>
         </nav>
 
@@ -422,6 +427,100 @@ Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids
 
                         <div class="card-footer-info" style="margin-top: 12px;">
                             <i data-lucide="info"></i> <strong>Tip:</strong> Clicking "Copy Rich Text" copies formatted text with clickable hyperlinks directly to your clipboard!
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: IMAGE FLYER VS TEXT FACT CHECKER -->
+            <section id="image-audit-tab" class="tab-pane">
+                <div class="grid-2col">
+                    <!-- Left: Upload/Paste Image & Written Content -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <!-- Flyer Image Upload Card -->
+                        <div class="card">
+                            <div class="card-header flex-between">
+                                <div>
+                                    <h2><i data-lucide="image"></i> Event Flyer / Image Input</h2>
+                                    <p>Upload or paste (Ctrl+V) an event flyer or poster image.</p>
+                                </div>
+                                <button class="btn btn-small btn-secondary" id="clearFlyerImageBtn">
+                                    <i data-lucide="trash-2"></i> Clear Image
+                                </button>
+                            </div>
+
+                            <div class="flyer-upload-zone" id="flyerDropZone">
+                                <input type="file" id="flyerFileInput" accept="image/*" class="file-input-hidden">
+                                <div id="flyerDropContent" class="flyer-drop-content">
+                                    <i data-lucide="upload-cloud" style="width: 44px; height: 44px; color: var(--brand-orange); margin-bottom: 8px;"></i>
+                                    <p><strong>Click to Upload</strong> or Drag & Drop Flyer Image</p>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted);">Supports PNG, JPG, WEBP • Or simply press <strong>Ctrl+V</strong> anywhere to paste an image!</span>
+                                </div>
+                                <div id="flyerPreviewWrapper" class="flyer-preview-wrapper hidden">
+                                    <img id="flyerPreviewImg" src="" alt="Event Flyer Preview">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Written Content Card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2><i data-lucide="file-text"></i> Written Event Description</h2>
+                                <p>Paste the written ride text to audit against the flyer image.</p>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="flyerTextInput" rows="8" placeholder="Paste written event description here... E.g.
+
+Blazin’ Saddle 75 Bicycle Rally – Saturday, August 1, 2026 – Granbury, TX
+Riders can choose from 20, 47, 62, or 75-mile routes starting at 7:30 AM.
+Website: https://blazinsaddle75.com/"></textarea>
+                            </div>
+
+                            <div class="form-actions">
+                                <button class="btn btn-primary" id="runImageAuditBtn" style="width: 100%;">
+                                    <i data-lucide="search-check"></i> Audit Image vs Written Content
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Audit Score & Discrepancy Report -->
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <div>
+                                <h2><i data-lucide="shield-check"></i> Image Fact Check Report</h2>
+                                <p>Automated verification score and discrepancy analysis.</p>
+                            </div>
+                            <div id="imageAuditScoreBadge" class="fact-score-badge">
+                                Ready to Audit
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar for OCR -->
+                        <div id="ocrProgressBox" class="ocr-progress-box hidden">
+                            <div class="ocr-progress-header">
+                                <span><i data-lucide="loader-2" class="spin-icon"></i> Scanning Flyer Text (OCR)...</span>
+                                <span id="ocrPercentText">0%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div id="ocrProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Results Container -->
+                        <div id="imageAuditResultsBox">
+                            <div class="placeholder-text" style="text-align: center; padding: 40px 20px;">
+                                <i data-lucide="scan-line" style="width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
+                                <p>Upload an event flyer image and paste your written content, then click <strong>"Audit Image vs Written Content"</strong> to check for discrepancies.</p>
+                            </div>
+                        </div>
+
+                        <!-- Extracted OCR Text Accordion -->
+                        <div id="ocrExtractedDrawer" class="ocr-extracted-drawer hidden">
+                            <details>
+                                <summary><i data-lucide="file-search"></i> View Text Extracted From Image Flyer</summary>
+                                <pre><code id="ocrExtractedCode"></code></pre>
+                            </details>
                         </div>
                     </div>
                 </div>
