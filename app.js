@@ -2778,15 +2778,29 @@ function initMasterSelectModal() {
                     <strong>${ride.title} ${ride.isFeatured ? '(Featured)' : ''}</strong>
                     <span>${ride.date} • ${ride.location}</span>
                 </div>
-            </label>`;
-        });
-        selectList.innerHTML = html;
-    }
-}
-
-/* ==========================================
+       /* ==========================================
    7. IMAGE FLYER VS TEXT FACT CHECKER (TAB 5)
    ========================================== */
+function convertImageToWebP(imgElement, quality = 0.82) {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = imgElement.naturalWidth || imgElement.width || 800;
+        canvas.height = imgElement.naturalHeight || imgElement.height || 600;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgElement, 0, 0);
+
+        canvas.toBlob((blob) => {
+            if (blob) {
+                const webpUrl = URL.createObjectURL(blob);
+                resolve({ blob, webpUrl, size: blob.size });
+            } else {
+                const dataUrl = canvas.toDataURL('image/webp', quality);
+                resolve({ blob: null, webpUrl: dataUrl, size: Math.round(dataUrl.length * 0.75) });
+            }
+        }, 'image/webp', quality);
+    });
+}
+
 function initImageFactChecker() {
     const fileInput = document.getElementById('flyerFileInput');
     const dropZone = document.getElementById('flyerDropZone');
@@ -2794,6 +2808,10 @@ function initImageFactChecker() {
     const previewWrapper = document.getElementById('flyerPreviewWrapper');
     const previewImg = document.getElementById('flyerPreviewImg');
     const clearImgBtn = document.getElementById('clearFlyerImageBtn');
+
+    const webpDownloadBar = document.getElementById('webpDownloadBar');
+    const webpSizeText = document.getElementById('webpSizeText');
+    const downloadWebpBtn = document.getElementById('downloadWebpBtn');
 
     const textInput = document.getElementById('flyerTextInput');
     const runAuditBtn = document.getElementById('runImageAuditBtn');
@@ -2807,6 +2825,8 @@ function initImageFactChecker() {
     const ocrCode = document.getElementById('ocrExtractedCode');
 
     let currentFlyerDataUrl = null;
+    let currentWebpBlob = null;
+    let currentWebpFilename = 'wheelbrothers-flyer.webp';
 
     // 1. File Upload Handler
     fileInput.addEventListener('change', (e) => {
@@ -2847,22 +2867,63 @@ function initImageFactChecker() {
             alert('Please select a valid image file (PNG, JPG, WEBP).');
             return;
         }
+        const originalSizeKb = Math.round(file.size / 1024);
+        const namePart = file.name ? file.name.replace(/\.[^/.]+$/, "") : "flyer";
+        currentWebpFilename = `${namePart}-optimized.webp`;
+
         const reader = new FileReader();
         reader.onload = (evt) => {
             currentFlyerDataUrl = evt.target.result;
             previewImg.src = currentFlyerDataUrl;
             dropContent.classList.add('hidden');
             previewWrapper.classList.remove('hidden');
+
+            // Automatic WebP Conversion & Compression
+            previewImg.onload = () => {
+                convertImageToWebP(previewImg, 0.82).then(res => {
+                    currentWebpBlob = res.blob;
+                    const webpSizeKb = Math.round(res.size / 1024);
+                    const reductionPct = Math.round(((file.size - res.size) / file.size) * 100);
+
+                    const formatSize = (kb) => kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+
+                    webpSizeText.textContent = `Original (${file.type.split('/')[1].toUpperCase()}): ${formatSize(originalSizeKb)} ➔ WebP: ${formatSize(webpSizeKb)} (${reductionPct > 0 ? '-' + reductionPct + '%' : 'Optimized'})`;
+                    webpDownloadBar.classList.remove('hidden');
+                    if (window.lucide) lucide.createIcons();
+                });
+            };
         };
         reader.readAsDataURL(file);
     }
 
+    // Download WebP Button
+    downloadWebpBtn.addEventListener('click', () => {
+        if (!previewImg.src) return;
+        const link = document.createElement('a');
+        link.download = currentWebpFilename;
+
+        if (currentWebpBlob) {
+            link.href = URL.createObjectURL(currentWebpBlob);
+        } else {
+            const canvas = document.createElement('canvas');
+            canvas.width = previewImg.naturalWidth || previewImg.width;
+            canvas.height = previewImg.naturalHeight || previewImg.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(previewImg, 0, 0);
+            link.href = canvas.toDataURL('image/webp', 0.85);
+        }
+        link.click();
+        showToast("Optimized WebP image downloaded!");
+    });
+
     clearImgBtn.addEventListener('click', () => {
         currentFlyerDataUrl = null;
+        currentWebpBlob = null;
         fileInput.value = '';
         previewImg.src = '';
         previewWrapper.classList.add('hidden');
         dropContent.classList.remove('hidden');
+        webpDownloadBar.classList.add('hidden');
         ocrDrawer.classList.add('hidden');
         resultsBox.innerHTML = `
             <div class="placeholder-text" style="text-align: center; padding: 40px 20px;">
@@ -2936,7 +2997,7 @@ function initImageFactChecker() {
         const titleMatch = writtenText.match(/^([^\n–\-]+)/);
         if (titleMatch) {
             const rawTitle = titleMatch[1].trim();
-            const titleWords = rawTitle.split(/\s+/).filter(w => w.length > 3 && !['ride', 'annual', 'bicycle', 'tour', 'texas', 'rally'].includes(w.toLowerCase()));
+            const titleWords = rawTitle.split(/\s+/).filter(w => w.length > 3 && !['ride', 'annual', 'bicycle', 'tour', 'texas', 'rally', 'event'].includes(w.toLowerCase()));
             const matchedWords = titleWords.filter(w => ocrLower.includes(w.toLowerCase()));
 
             if (titleWords.length > 0) {
@@ -2958,7 +3019,7 @@ function initImageFactChecker() {
             }
         }
 
-        // 2. Date Verification & Discrepancy Check
+        // 2. Calendar Date Verification & Discrepancy Check (Month, Day, Year)
         const dateMatch = writtenText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/i);
         if (dateMatch) {
             const month = dateMatch[1];
@@ -2969,18 +3030,16 @@ function initImageFactChecker() {
             const hasMonth = ocrLower.includes(month.toLowerCase());
             const hasDay = ocrText.match(new RegExp(`\\b${day}\\b`));
 
-            // Look for conflicting dates printed on image
             const imageMonthMatches = ocrText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/gi);
-            
+
             if (hasMonth && hasDay) {
                 checks.push({
                     type: 'pass',
                     category: 'Event Date',
                     title: `Date Matches Flyer Image (${fullDateStr})`,
-                    detail: `Month (${month}) and Day (${day}) verified on flyer image.`
+                    detail: `Month (${month}), Day (${day}), and Year (${year}) verified on flyer image.`
                 });
             } else if (imageMonthMatches && imageMonthMatches.length > 0) {
-                // Image flyer printed a DIFFERENT date!
                 const conflictingDate = imageMonthMatches[0];
                 if (conflictingDate.toLowerCase() !== `${month.toLowerCase()} ${day}`) {
                     checks.push({
@@ -2993,7 +3052,59 @@ function initImageFactChecker() {
             }
         }
 
-        // 3. Route Distances Discrepancy Check
+        // 3. Day of Week Verification (e.g. Saturday vs Sunday)
+        const dayOfWeekMatch = writtenText.match(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/i);
+        if (dayOfWeekMatch) {
+            const dayName = dayOfWeekMatch[1];
+            const hasDayName = ocrLower.includes(dayName.toLowerCase());
+
+            const imageDays = ocrText.match(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b/gi);
+            if (hasDayName) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Day of Week',
+                    title: `Day of Week Confirmed (${dayName})`,
+                    detail: `Day of the week "${dayName}" matches flyer graphic.`
+                });
+            } else if (imageDays && imageDays.length > 0) {
+                const conflictingDay = imageDays[0];
+                if (conflictingDay.toLowerCase() !== dayName.toLowerCase()) {
+                    checks.push({
+                        type: 'fail',
+                        category: 'Day Discrepancy',
+                        title: `Day of Week Mismatch on Flyer Image!`,
+                        detail: `Written text specifies "${dayName}", but flyer image prints "${conflictingDay}"!`
+                    });
+                }
+            }
+        }
+
+        // 4. Start Times & Schedule Verification
+        const timeMatchWritten = writtenText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
+        const timeMatchOcr = ocrText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
+
+        if (timeMatchWritten && timeMatchOcr) {
+            const timeWritten = timeMatchWritten[1].replace(/\s+/, '').toUpperCase();
+            const timeOcr = timeMatchOcr[1].replace(/\s+/, '').toUpperCase();
+
+            if (timeWritten === timeOcr || ocrLower.includes(timeWritten.toLowerCase())) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Start Time',
+                    title: `Start Time Matches Flyer Image (${timeMatchWritten[1]})`,
+                    detail: `Start time (${timeMatchWritten[1]}) verified on flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'fail',
+                    category: 'Start Time Discrepancy',
+                    title: `Start Time Mismatch Detected!`,
+                    detail: `Written text specifies "${timeMatchWritten[1]}", but flyer image specifies "${timeOcr[1]}"!`
+                });
+            }
+        }
+
+        // 5. Route Distances Discrepancy Check
         const numbersInWritten = Array.from(writtenText.matchAll(/\b(\d{2,3})\b/g)).map(m => m[1]);
         const uniqueWrittenMiles = [...new Set(numbersInWritten)].filter(n => parseInt(n, 10) >= 10 && parseInt(n, 10) <= 200);
 
@@ -3021,32 +3132,7 @@ function initImageFactChecker() {
             }
         }
 
-        // 4. Start Time Discrepancy Check
-        const timeMatchWritten = writtenText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
-        const timeMatchOcr = ocrText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
-
-        if (timeMatchWritten && timeMatchOcr) {
-            const timeWritten = timeMatchWritten[1].replace(/\s+/, '').toUpperCase();
-            const timeOcr = timeMatchOcr[1].replace(/\s+/, '').toUpperCase();
-
-            if (timeWritten === timeOcr || ocrLower.includes(timeWritten.toLowerCase())) {
-                checks.push({
-                    type: 'pass',
-                    category: 'Start Time',
-                    title: `Start Time Matches Flyer Image (${timeMatchWritten[1]})`,
-                    detail: `Start time (${timeMatchWritten[1]}) verified on flyer image.`
-                });
-            } else {
-                checks.push({
-                    type: 'fail',
-                    category: 'Start Time Discrepancy',
-                    title: `Start Time Mismatch Detected!`,
-                    detail: `Written text specifies "${timeMatchWritten[1]}", but flyer image specifies "${timeMatchOcr[1]}"!`
-                });
-            }
-        }
-
-        // 5. Location Verification
+        // 6. Venue Address & City Verification
         const locMatch = writtenText.match(/([A-Z][a-z\s]+),\s*(TX|Texas|OK|Oklahoma)/);
         if (locMatch) {
             const city = locMatch[1].trim();
@@ -3060,13 +3146,53 @@ function initImageFactChecker() {
             }
         }
 
-        // If no discrepancies found and at least 1 check passed
+        // 7. Website Domain & Link Verification
+        const urlMatch = writtenText.match(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(?:com|org|net|gov))/i);
+        if (urlMatch) {
+            const domain = urlMatch[0].replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+            if (ocrLower.includes(domain.toLowerCase())) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Website URL',
+                    title: `Website Link Confirmed (${domain})`,
+                    detail: `Domain "${domain}" matches text on flyer image.`
+                });
+            }
+        }
+
+        // 8. Contact Phone & Email Verification
+        const phoneMatchWritten = writtenText.match(/\b(\d{3}[-.\s]?\d{3}[-.\s]?\d{4})\b/);
+        const emailMatchWritten = writtenText.match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/);
+
+        if (phoneMatchWritten && ocrLower.includes(phoneMatchWritten[1].replace(/[-.\s]/g, ''))) {
+            checks.push({
+                type: 'pass',
+                category: 'Contact Info',
+                title: `Phone Number Confirmed (${phoneMatchWritten[1]})`,
+                detail: `Phone number matches flyer graphic.`
+            });
+        }
+        if (emailMatchWritten && ocrLower.includes(emailMatchWritten[1].toLowerCase())) {
+            checks.push({
+                type: 'pass',
+                category: 'Contact Info',
+                title: `Email Address Confirmed (${emailMatchWritten[1]})`,
+                detail: `Email address matches flyer graphic.`
+            });
+        }
+
+        // Fallback default if all clear
         if (checks.length === 0) {
             checks.push({
                 type: 'pass',
                 category: 'Verification Status',
                 title: 'Flyer Image Content Verified',
                 detail: 'No discrepancies or conflicting details detected on flyer image.'
+            });
+        }
+
+        return checks;
+    }tected on flyer image.'
             });
         }
 

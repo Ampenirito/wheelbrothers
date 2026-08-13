@@ -504,6 +504,19 @@ Website: https://blazinsaddle75.com/"></textarea>
                                 </div>
                             </div>
 
+                            <!-- Auto WebP Conversion & Download Bar -->
+                            <div id="webpDownloadBar" class="webp-download-bar hidden flex-between" style="margin-top: 12px; padding: 10px 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--brand-orange); display: flex; align-items: center; gap: 6px;">
+                                        <i data-lucide="file-check-2" style="width: 16px; height: 16px;"></i> Converted to Optimized WebP
+                                    </span>
+                                    <span id="webpSizeText" style="font-size: 0.775rem; color: var(--text-secondary);">Original: -- KB ➔ WebP: -- KB</span>
+                                </div>
+                                <button class="btn btn-small btn-primary" id="downloadWebpBtn">
+                                    <i data-lucide="download"></i> Download WebP
+                                </button>
+                            </div>
+
                             <div class="form-actions" style="margin-top: 16px;">
                                 <button class="btn btn-primary" id="runImageAuditBtn" style="width: 100%;">
                                     <i data-lucide="search-check"></i> Fact Check Image vs Written Content
