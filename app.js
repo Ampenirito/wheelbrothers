@@ -2830,9 +2830,20 @@ function initImageFactChecker() {
     const ocrDrawer = document.getElementById('ocrExtractedDrawer');
     const ocrCode = document.getElementById('ocrExtractedCode');
 
+    const flyerSocialCaptionBox = document.getElementById('flyerSocialCaptionBox');
+    const flyerSocialCaptionOutput = document.getElementById('flyerSocialCaptionOutput');
+    const copyFlyerSocialBtn = document.getElementById('copyFlyerSocialBtn');
+
     let currentFlyerDataUrl = null;
     let currentWebpBlob = null;
     let currentWebpFilename = 'wheelbrothers-flyer.webp';
+
+    copyFlyerSocialBtn.addEventListener('click', () => {
+        if (!flyerSocialCaptionOutput.value.trim()) return;
+        navigator.clipboard.writeText(flyerSocialCaptionOutput.value).then(() => {
+            showToast("Social Media Caption copied to clipboard!");
+        });
+    });
 
     // 1. File Upload Handler
     fileInput.addEventListener('change', (e) => {
@@ -2931,6 +2942,8 @@ function initImageFactChecker() {
         dropContent.classList.remove('hidden');
         webpDownloadBar.classList.add('hidden');
         ocrDrawer.classList.add('hidden');
+        flyerSocialCaptionBox.classList.add('hidden');
+        flyerSocialCaptionOutput.value = '';
         resultsBox.innerHTML = `
             <div class="placeholder-text" style="text-align: center; padding: 40px 20px;">
                 <i data-lucide="scan-line" style="width: 48px; height: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
@@ -2985,6 +2998,26 @@ function initImageFactChecker() {
 
             const auditReport = performImageVsTextAudit(writtenText, extractedOcrText);
             renderImageAuditResults(auditReport);
+
+            // Generate Social Media Caption for Tab 5
+            const firstLine = writtenText.split('\n')[0] || 'Cycling Event';
+            const dateMatch = writtenText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/i);
+            const locMatch = writtenText.match(/([A-Z][a-z\s]+),\s*(TX|Texas|OK|Oklahoma)/);
+            const urlMatch = writtenText.match(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(?:com|org|net|gov))/i);
+
+            const descLines = writtenText.split('\n').filter(l => l.length > 80 && !l.includes('Website:'));
+            const summaryText = descLines.length > 0 ? descLines[0] : '';
+
+            const caption = generateSocialMediaPost({
+                title: firstLine,
+                date: dateMatch ? dateMatch[0] : '',
+                location: locMatch ? locMatch[0] : '',
+                summary: summaryText,
+                website: urlMatch ? urlMatch[0] : ''
+            });
+
+            flyerSocialCaptionOutput.value = caption;
+            flyerSocialCaptionBox.classList.remove('hidden');
 
         } catch (err) {
             console.error(err);
