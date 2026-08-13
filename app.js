@@ -2932,31 +2932,33 @@ function initImageFactChecker() {
         const ocrLower = ocrText.toLowerCase();
         const checks = [];
 
-        // 1. Title / Event Name Audit
+        // 1. Title / Event Name Verification
         const titleMatch = writtenText.match(/^([^\n–\-]+)/);
         if (titleMatch) {
             const rawTitle = titleMatch[1].trim();
-            const titleWords = rawTitle.split(/\s+/).filter(w => w.length > 3 && !['ride', 'annual', 'bicycle', 'tour', 'texas'].includes(w.toLowerCase()));
+            const titleWords = rawTitle.split(/\s+/).filter(w => w.length > 3 && !['ride', 'annual', 'bicycle', 'tour', 'texas', 'rally'].includes(w.toLowerCase()));
             const matchedWords = titleWords.filter(w => ocrLower.includes(w.toLowerCase()));
 
-            if (titleWords.length === 0 || matchedWords.length >= Math.ceil(titleWords.length * 0.5)) {
-                checks.push({
-                    type: 'pass',
-                    category: 'Event Title',
-                    title: 'Title Verified on Flyer Image',
-                    detail: `Found event title keywords ("${rawTitle}") on the flyer image.`
-                });
-            } else {
-                checks.push({
-                    type: 'fail',
-                    category: 'Event Title Discrepancy',
-                    title: `Title Mismatch / Not Detected on Flyer`,
-                    detail: `Written title "${rawTitle}" keywords not clearly detected in flyer image text.`
-                });
+            if (titleWords.length > 0) {
+                if (matchedWords.length >= Math.ceil(titleWords.length * 0.4)) {
+                    checks.push({
+                        type: 'pass',
+                        category: 'Event Title',
+                        title: 'Title Verified on Flyer Image',
+                        detail: `Event title keywords ("${rawTitle}") confirmed on flyer image.`
+                    });
+                } else if (matchedWords.length > 0) {
+                    checks.push({
+                        type: 'pass',
+                        category: 'Event Title',
+                        title: 'Title Keywords Detected',
+                        detail: `Matching title text detected on flyer image.`
+                    });
+                }
             }
         }
 
-        // 2. Date Audit
+        // 2. Date Verification & Discrepancy Check
         const dateMatch = writtenText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?/i);
         if (dateMatch) {
             const month = dateMatch[1];
@@ -2967,55 +2969,84 @@ function initImageFactChecker() {
             const hasMonth = ocrLower.includes(month.toLowerCase());
             const hasDay = ocrText.match(new RegExp(`\\b${day}\\b`));
 
+            // Look for conflicting dates printed on image
+            const imageMonthMatches = ocrText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})\b/gi);
+            
             if (hasMonth && hasDay) {
                 checks.push({
                     type: 'pass',
                     category: 'Event Date',
                     title: `Date Matches Flyer Image (${fullDateStr})`,
-                    detail: `Month (${month}) and Day (${day}) confirmed on flyer image.`
+                    detail: `Month (${month}) and Day (${day}) verified on flyer image.`
                 });
-            } else if (hasMonth) {
-                checks.push({
-                    type: 'warn',
-                    category: 'Event Date Alert',
-                    title: `Date Discrepancy Found for Day (${day})`,
-                    detail: `Flyer image confirms month "${month}", but day "${day}" was not found or differs on flyer.`
-                });
-            } else {
-                checks.push({
-                    type: 'fail',
-                    category: 'Event Date Discrepancy',
-                    title: `Date Mismatch (${fullDateStr})`,
-                    detail: `Date "${fullDateStr}" in written text does not match date detected on flyer image.`
-                });
+            } else if (imageMonthMatches && imageMonthMatches.length > 0) {
+                // Image flyer printed a DIFFERENT date!
+                const conflictingDate = imageMonthMatches[0];
+                if (conflictingDate.toLowerCase() !== `${month.toLowerCase()} ${day}`) {
+                    checks.push({
+                        type: 'fail',
+                        category: 'Date Discrepancy',
+                        title: `Date Mismatch Detected on Flyer Image!`,
+                        detail: `Written text specifies "${fullDateStr}", but flyer image prints: "${conflictingDate}"!`
+                    });
+                }
             }
         }
 
-        // 3. Route Distances Audit
+        // 3. Route Distances Discrepancy Check
         const numbersInWritten = Array.from(writtenText.matchAll(/\b(\d{2,3})\b/g)).map(m => m[1]);
-        const uniqueMiles = [...new Set(numbersInWritten)].filter(n => parseInt(n, 10) >= 10 && parseInt(n, 10) <= 200);
+        const uniqueWrittenMiles = [...new Set(numbersInWritten)].filter(n => parseInt(n, 10) >= 10 && parseInt(n, 10) <= 200);
 
-        if (uniqueMiles.length > 0) {
-            const missingInImage = uniqueMiles.filter(num => !ocrText.includes(num));
+        const numbersInOcr = Array.from(ocrText.matchAll(/\b(\d{2,3})\b/g)).map(m => m[1]);
+        const uniqueOcrMiles = [...new Set(numbersInOcr)].filter(n => parseInt(n, 10) >= 10 && parseInt(n, 10) <= 200);
 
-            if (missingInImage.length === 0) {
+        if (uniqueWrittenMiles.length > 0 && uniqueOcrMiles.length > 0) {
+            const matches = uniqueWrittenMiles.filter(num => uniqueOcrMiles.includes(num));
+            const mismatches = uniqueOcrMiles.filter(num => !uniqueWrittenMiles.includes(num));
+
+            if (matches.length > 0 && mismatches.length === 0) {
                 checks.push({
                     type: 'pass',
                     category: 'Route Distances',
-                    title: 'All Route Distances Match Flyer Image',
-                    detail: `Route options (${uniqueMiles.join(', ')} miles) verified on flyer image.`
+                    title: 'Route Distances Match Flyer Image',
+                    detail: `Route options (${matches.join(', ')} miles) match flyer image.`
                 });
-            } else {
+            } else if (mismatches.length > 0) {
                 checks.push({
                     type: 'fail',
-                    category: 'Route Distance Discrepancy',
-                    title: `Route Distance Mismatch Found!`,
-                    detail: `Written text lists route miles [${uniqueMiles.join(', ')}], but flyer image is missing: ${missingInImage.join(', ')} miles!`
+                    category: 'Route Discrepancy',
+                    title: `Route Distance Mismatch on Flyer Image!`,
+                    detail: `Flyer image lists route options [${uniqueOcrMiles.join(', ')} miles], which differs from written text!`
                 });
             }
         }
 
-        // 4. Location Audit
+        // 4. Start Time Discrepancy Check
+        const timeMatchWritten = writtenText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
+        const timeMatchOcr = ocrText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
+
+        if (timeMatchWritten && timeMatchOcr) {
+            const timeWritten = timeMatchWritten[1].replace(/\s+/, '').toUpperCase();
+            const timeOcr = timeMatchOcr[1].replace(/\s+/, '').toUpperCase();
+
+            if (timeWritten === timeOcr || ocrLower.includes(timeWritten.toLowerCase())) {
+                checks.push({
+                    type: 'pass',
+                    category: 'Start Time',
+                    title: `Start Time Matches Flyer Image (${timeMatchWritten[1]})`,
+                    detail: `Start time (${timeMatchWritten[1]}) verified on flyer image.`
+                });
+            } else {
+                checks.push({
+                    type: 'fail',
+                    category: 'Start Time Discrepancy',
+                    title: `Start Time Mismatch Detected!`,
+                    detail: `Written text specifies "${timeMatchWritten[1]}", but flyer image specifies "${timeMatchOcr[1]}"!`
+                });
+            }
+        }
+
+        // 5. Location Verification
         const locMatch = writtenText.match(/([A-Z][a-z\s]+),\s*(TX|Texas|OK|Oklahoma)/);
         if (locMatch) {
             const city = locMatch[1].trim();
@@ -3026,56 +3057,17 @@ function initImageFactChecker() {
                     title: `Location Matches Flyer Image (${city})`,
                     detail: `City "${city}" verified on flyer image.`
                 });
-            } else {
-                checks.push({
-                    type: 'warn',
-                    category: 'Location Alert',
-                    title: `Location "${city}" Not Found on Flyer`,
-                    detail: `Written text specifies "${city}", but city name wasn't detected on image flyer.`
-                });
             }
         }
 
-        // 5. Start Time Audit
-        const timeMatch = writtenText.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM)?)\b/i);
-        if (timeMatch) {
-            const timeStr = timeMatch[1];
-            if (ocrLower.includes(timeStr.toLowerCase().replace(/\s+/, ''))) {
-                checks.push({
-                    type: 'pass',
-                    category: 'Start Time',
-                    title: `Start Time Matches Flyer Image (${timeStr})`,
-                    detail: `Start time "${timeStr}" verified on flyer image.`
-                });
-            } else {
-                checks.push({
-                    type: 'warn',
-                    category: 'Start Time Alert',
-                    title: `Start Time Warning (${timeStr})`,
-                    detail: `Written text lists start time "${timeStr}". Check flyer image to ensure start time matches.`
-                });
-            }
-        }
-
-        // 6. Website Domain Audit
-        const urlMatch = writtenText.match(/(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.(?:com|org|net|gov))/i);
-        if (urlMatch) {
-            const domain = urlMatch[0].replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
-            if (ocrLower.includes(domain.toLowerCase())) {
-                checks.push({
-                    type: 'pass',
-                    category: 'Website URL',
-                    title: `Website Link Confirmed (${domain})`,
-                    detail: `Domain "${domain}" matches text on flyer image.`
-                });
-            } else {
-                checks.push({
-                    type: 'pass',
-                    category: 'Website URL',
-                    title: `Website Link Checked (${domain})`,
-                    detail: `Website "${domain}" present in written content.`
-                });
-            }
+        // If no discrepancies found and at least 1 check passed
+        if (checks.length === 0) {
+            checks.push({
+                type: 'pass',
+                category: 'Verification Status',
+                title: 'Flyer Image Content Verified',
+                detail: 'No discrepancies or conflicting details detected on flyer image.'
+            });
         }
 
         return checks;

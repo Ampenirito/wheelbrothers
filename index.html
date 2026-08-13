@@ -463,14 +463,29 @@ Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids
             <!-- TAB 5: IMAGE FLYER VS TEXT FACT CHECKER -->
             <section id="image-audit-tab" class="tab-pane">
                 <div class="grid-2col">
-                    <!-- Left: Upload/Paste Image & Written Content -->
+                    <!-- Left: Written Content FIRST, then Image Upload SECOND -->
                     <div style="display: flex; flex-direction: column; gap: 20px;">
-                        <!-- Flyer Image Upload Card -->
+                        <!-- 1. Written Content Card (FIRST) -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h2><i data-lucide="file-text"></i> 1. Written Event Description</h2>
+                                <p>Paste the written ride text first as the ground truth.</p>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="flyerTextInput" rows="8" placeholder="Paste written event description here... E.g.
+
+Blazin’ Saddle 75 Bicycle Rally – Saturday, August 1, 2026 – Granbury, TX
+Riders can choose from 20, 47, 62, or 75-mile routes starting at 7:30 AM.
+Website: https://blazinsaddle75.com/"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 2. Flyer Image Upload Card (SECOND) -->
                         <div class="card">
                             <div class="card-header flex-between">
                                 <div>
-                                    <h2><i data-lucide="image"></i> Event Flyer / Image Input</h2>
-                                    <p>Upload or paste (Ctrl+V) an event flyer or poster image.</p>
+                                    <h2><i data-lucide="image"></i> 2. Event Flyer / Image Input</h2>
+                                    <p>Upload or paste (Ctrl+V) the event flyer image to check if image details are correct.</p>
                                 </div>
                                 <button class="btn btn-small btn-secondary" id="clearFlyerImageBtn">
                                     <i data-lucide="trash-2"></i> Clear Image
@@ -488,25 +503,10 @@ Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids
                                     <img id="flyerPreviewImg" src="" alt="Event Flyer Preview">
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Written Content Card -->
-                        <div class="card">
-                            <div class="card-header">
-                                <h2><i data-lucide="file-text"></i> Written Event Description</h2>
-                                <p>Paste the written ride text to audit against the flyer image.</p>
-                            </div>
-                            <div class="form-group">
-                                <textarea id="flyerTextInput" rows="8" placeholder="Paste written event description here... E.g.
-
-Blazin’ Saddle 75 Bicycle Rally – Saturday, August 1, 2026 – Granbury, TX
-Riders can choose from 20, 47, 62, or 75-mile routes starting at 7:30 AM.
-Website: https://blazinsaddle75.com/"></textarea>
-                            </div>
-
-                            <div class="form-actions">
+                            <div class="form-actions" style="margin-top: 16px;">
                                 <button class="btn btn-primary" id="runImageAuditBtn" style="width: 100%;">
-                                    <i data-lucide="search-check"></i> Audit Image vs Written Content
+                                    <i data-lucide="search-check"></i> Fact Check Image vs Written Content
                                 </button>
                             </div>
                         </div>
