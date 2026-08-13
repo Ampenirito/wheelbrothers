@@ -2778,7 +2778,13 @@ function initMasterSelectModal() {
                     <strong>${ride.title} ${ride.isFeatured ? '(Featured)' : ''}</strong>
                     <span>${ride.date} • ${ride.location}</span>
                 </div>
-       /* ==========================================
+            </label>`;
+        });
+        selectList.innerHTML = html;
+    }
+}
+
+/* ==========================================
    7. IMAGE FLYER VS TEXT FACT CHECKER (TAB 5)
    ========================================== */
 function convertImageToWebP(imgElement, quality = 0.82) {
