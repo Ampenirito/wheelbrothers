@@ -227,6 +227,7 @@ About the Ride:
                             <div class="output-mode-buttons">
                                 <button class="btn btn-small btn-outline active" id="viewRichBtn"><i data-lucide="link"></i> Rich Text</button>
                                 <button class="btn btn-small btn-outline" id="viewPlainBtn"><i data-lucide="file-code"></i> Plain Text</button>
+                                <button class="btn btn-small btn-outline" id="viewSocialBtn"><i data-lucide="share-2"></i> Social Post</button>
                             </div>
                         </div>
 
@@ -243,7 +244,7 @@ About the Ride:
                             </div>
                         </div>
 
-                        <!-- Plain Text Container (Hidden by default or toggled) -->
+                        <!-- Plain Text Container -->
                         <div id="plainTextModeBox" class="hidden">
                             <div class="code-header" style="margin-bottom: 8px;">
                                 <span class="code-lang">Plain Text / Markdown</span>
@@ -253,6 +254,19 @@ About the Ride:
                             </div>
                             <div class="form-group">
                                 <textarea id="rewrittenOutput" rows="16" placeholder="Plain text output will appear here..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Social Media Post Container -->
+                        <div id="socialModeBox" class="hidden">
+                            <div class="code-header" style="margin-bottom: 8px;">
+                                <span class="code-lang">Social Media Post</span>
+                                <button class="btn btn-small btn-primary" id="copySocialPostBtn">
+                                    <i data-lucide="copy"></i> Copy Social Post
+                                </button>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="socialPostOutput" rows="16" placeholder="Social media post format will appear here..."></textarea>
                             </div>
                         </div>
 
@@ -396,6 +410,7 @@ Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids
                             <div class="output-mode-buttons">
                                 <button class="btn btn-small btn-outline active" id="viewNewsRichBtn"><i data-lucide="link"></i> Rich Text</button>
                                 <button class="btn btn-small btn-outline" id="viewNewsMarkdownBtn"><i data-lucide="file-code"></i> Markdown</button>
+                                <button class="btn btn-small btn-outline" id="viewNewsSocialBtn"><i data-lucide="share-2"></i> Social Post</button>
                             </div>
                         </div>
 
@@ -422,6 +437,19 @@ Registration Link: https://solerssports.raceentry.com/races/gear-up-against-kids
                             </div>
                             <div class="form-group">
                                 <textarea id="newsletterMarkdownOutput" rows="18" placeholder="Markdown newsletter text will appear here..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Social Post Newsletter Box -->
+                        <div id="newsSocialModeBox" class="hidden">
+                            <div class="code-header" style="margin-bottom: 8px;">
+                                <span class="code-lang">Social Media Post</span>
+                                <button class="btn btn-small btn-primary" id="copyNewsSocialBtn">
+                                    <i data-lucide="copy"></i> Copy Social Post Text
+                                </button>
+                            </div>
+                            <div class="form-group">
+                                <textarea id="newsletterSocialOutput" rows="18" placeholder="Social media post text will appear here..."></textarea>
                             </div>
                         </div>
 

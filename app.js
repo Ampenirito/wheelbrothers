@@ -1461,8 +1461,12 @@ function initRewriter() {
 
     const viewRichBtn = document.getElementById('viewRichBtn');
     const viewPlainBtn = document.getElementById('viewPlainBtn');
+    const viewSocialBtn = document.getElementById('viewSocialBtn');
     const richTextModeBox = document.getElementById('richTextModeBox');
     const plainTextModeBox = document.getElementById('plainTextModeBox');
+    const socialModeBox = document.getElementById('socialModeBox');
+    const socialPostOutput = document.getElementById('socialPostOutput');
+    const copySocialPostBtn = document.getElementById('copySocialPostBtn');
 
     const factCheckContainer = document.getElementById('factCheckContainer');
     const factCheckList = document.getElementById('factCheckList');
@@ -1471,19 +1475,32 @@ function initRewriter() {
     let currentHtmlSummary = '';
     let currentPlainSummary = '';
 
-    // Mode Toggle (Rich Text vs Plain Text)
+    // Mode Toggle (Rich Text vs Plain Text vs Social Post)
     viewRichBtn.addEventListener('click', () => {
         viewRichBtn.classList.add('active');
         viewPlainBtn.classList.remove('active');
+        viewSocialBtn.classList.remove('active');
         richTextModeBox.classList.remove('hidden');
         plainTextModeBox.classList.add('hidden');
+        socialModeBox.classList.add('hidden');
     });
 
     viewPlainBtn.addEventListener('click', () => {
         viewPlainBtn.classList.add('active');
         viewRichBtn.classList.remove('active');
+        viewSocialBtn.classList.remove('active');
         plainTextModeBox.classList.remove('hidden');
         richTextModeBox.classList.add('hidden');
+        socialModeBox.classList.add('hidden');
+    });
+
+    viewSocialBtn.addEventListener('click', () => {
+        viewSocialBtn.classList.add('active');
+        viewRichBtn.classList.remove('active');
+        viewPlainBtn.classList.remove('active');
+        socialModeBox.classList.remove('hidden');
+        richTextModeBox.classList.add('hidden');
+        plainTextModeBox.classList.add('hidden');
     });
 
     loadSampleBtn.addEventListener('click', () => {
@@ -1494,6 +1511,7 @@ function initRewriter() {
     clearBtn.addEventListener('click', () => {
         rawInput.value = '';
         outputArea.value = '';
+        socialPostOutput.value = '';
         richTextOutput.innerHTML = '<p class="placeholder-text">Formatted output with active hyperlinks will appear here after clicking "Fact-Check & Rewrite Info"...</p>';
         factCheckContainer.classList.add('hidden');
     });
@@ -1505,6 +1523,14 @@ function initRewriter() {
         if (!outputArea.value.trim()) return;
         navigator.clipboard.writeText(outputArea.value).then(() => {
             showToast("Plain text copied to clipboard!");
+        });
+    });
+
+    // Copy Social Post
+    copySocialPostBtn.addEventListener('click', () => {
+        if (!socialPostOutput.value.trim()) return;
+        navigator.clipboard.writeText(socialPostOutput.value).then(() => {
+            showToast("Social Media Post copied to clipboard!");
         });
     });
 
@@ -1653,6 +1679,17 @@ function initRewriter() {
 
         outputArea.value = currentPlainSummary;
         richTextOutput.innerHTML = currentHtmlSummary;
+
+        // Populate Social Media Post Output
+        const venueAddr = parsed.address ? `${parsed.venue ? parsed.venue + ', ' : ''}${parsed.address}, ${parsed.location}, ${parsed.state}` : `${parsed.location}, ${parsed.state}`;
+        const socialPost = generateSocialMediaPost({
+            title: parsed.name,
+            date: formatReadableDate(parsed.date) || parsed.date,
+            location: venueAddr,
+            summary: parsed.summaryParagraph || (parsed.routes ? `Featuring route options of ${parsed.routes} miles through scenic Texas roads with full rest stop support.` : ''),
+            website: foundUrl
+        });
+        socialPostOutput.value = socialPost;
 
         // 4. Reveal & update Auto-Generated Snippet box
         autoSnippetSection.classList.remove('hidden');
@@ -2352,29 +2389,46 @@ function initNewsletterBuilder() {
     const rawInput = document.getElementById('rawNewsletterInput');
     const richOutput = document.getElementById('newsletterRichOutput');
     const markdownOutput = document.getElementById('newsletterMarkdownOutput');
+    const socialOutput = document.getElementById('newsletterSocialOutput');
     const generateBtn = document.getElementById('generateNewsletterBtn');
     const loadSampleBtn = document.getElementById('loadSampleNewsletterBtn');
     const clearBtn = document.getElementById('clearNewsletterBtn');
     const copyRichBtn = document.getElementById('copyNewsRichBtn');
     const copyMarkdownBtn = document.getElementById('copyNewsMarkdownBtn');
+    const copySocialBtn = document.getElementById('copyNewsSocialBtn');
 
     const viewRichBtn = document.getElementById('viewNewsRichBtn');
     const viewMarkdownBtn = document.getElementById('viewNewsMarkdownBtn');
+    const viewSocialBtn = document.getElementById('viewNewsSocialBtn');
     const newsRichModeBox = document.getElementById('newsRichModeBox');
     const newsMarkdownModeBox = document.getElementById('newsMarkdownModeBox');
+    const newsSocialModeBox = document.getElementById('newsSocialModeBox');
 
     viewRichBtn.addEventListener('click', () => {
         viewRichBtn.classList.add('active');
         viewMarkdownBtn.classList.remove('active');
+        viewSocialBtn.classList.remove('active');
         newsRichModeBox.classList.remove('hidden');
         newsMarkdownModeBox.classList.add('hidden');
+        newsSocialModeBox.classList.add('hidden');
     });
 
     viewMarkdownBtn.addEventListener('click', () => {
         viewMarkdownBtn.classList.add('active');
         viewRichBtn.classList.remove('active');
+        viewSocialBtn.classList.remove('active');
         newsMarkdownModeBox.classList.remove('hidden');
         newsRichModeBox.classList.add('hidden');
+        newsSocialModeBox.classList.add('hidden');
+    });
+
+    viewSocialBtn.addEventListener('click', () => {
+        viewSocialBtn.classList.add('active');
+        viewRichBtn.classList.remove('active');
+        viewMarkdownBtn.classList.remove('active');
+        newsSocialModeBox.classList.remove('hidden');
+        newsRichModeBox.classList.add('hidden');
+        newsMarkdownModeBox.classList.add('hidden');
     });
 
     loadSampleBtn.addEventListener('click', () => {
@@ -2385,6 +2439,7 @@ function initNewsletterBuilder() {
     clearBtn.addEventListener('click', () => {
         rawInput.value = '';
         markdownOutput.value = '';
+        socialOutput.value = '';
         richOutput.innerHTML = '<p class="placeholder-text">Generated newsletter with live blue links will appear here after clicking "Generate Newsletter Summary"...</p>';
     });
 
@@ -2407,10 +2462,18 @@ function initNewsletterBuilder() {
         });
     });
 
+    copySocialBtn.addEventListener('click', () => {
+        if (!socialOutput.value.trim()) return;
+        navigator.clipboard.writeText(socialOutput.value).then(() => {
+            showToast("Social Media Post copied to clipboard!");
+        });
+    });
+
     function generateNewsletter() {
         const text = rawInput.value.trim();
         if (!text) {
             markdownOutput.value = '';
+            socialOutput.value = '';
             richOutput.innerHTML = '<p class="placeholder-text">Generated newsletter with live blue links will appear here...</p>';
             return;
         }
@@ -2418,9 +2481,11 @@ function initNewsletterBuilder() {
         const items = parseNewsletterItems(text);
         const richHtml = buildNewsletterRichHtml(items);
         const markdown = buildNewsletterMarkdown(items);
+        const socialPosts = buildNewsletterSocialPosts(items);
 
         richOutput.innerHTML = richHtml;
         markdownOutput.value = markdown;
+        socialOutput.value = socialPosts;
     }
 }
 
@@ -2594,6 +2659,66 @@ function buildNewsletterMarkdown(items) {
         }
     });
     return md.trim();
+}
+
+/**
+ * Generates a clean, engaging Social Media Post for an event item
+ */
+function generateSocialMediaPost(eventData) {
+    let title = (eventData.title || 'Cycling Event').replace(/^\*\*|\*\*$/g, '').trim();
+    let date = (eventData.date || '').trim();
+    let location = (eventData.location || '').trim();
+    let summary = (eventData.summary || '').trim();
+    let website = (eventData.website || '').trim();
+
+    // If title line has dashes like "40th Annual Tour d’ Italia – Saturday, June 20, 2026 – Italy, TX"
+    if (title.includes(' – ') || title.includes(' - ')) {
+        const parts = title.split(/\s*–\s*|\s*-\s*/);
+        title = parts[0].trim();
+        if (!date && parts[1]) date = parts[1].trim();
+        if (!location && parts[2]) location = parts[2].trim();
+    }
+
+    let post = `Join us for the ${title}`;
+    if (date) post += ` on ${date}`;
+    if (location) post += `, in ${location}`;
+    post += `.\n\n`;
+
+    if (summary) {
+        post += `${summary}\n\n`;
+    }
+
+    if (date) {
+        post += `Date: ${date}\n`;
+    }
+    if (location) {
+        post += `Location: ${location}\n`;
+    }
+    post += `\n`;
+
+    post += `Whether you're riding for the challenge, the community, or the cause, the ${title} offers a memorable experience for cyclists of all levels.\n\n`;
+
+    if (website) {
+        const href = ensureHttp(website);
+        post += `Read more at: ${href}`;
+    } else {
+        post += `Read more at: `;
+    }
+
+    return post.trim();
+}
+
+function buildNewsletterSocialPosts(items) {
+    let posts = [];
+    items.forEach(item => {
+        const post = generateSocialMediaPost({
+            title: item.header,
+            summary: item.summary,
+            website: item.website || item.regLink
+        });
+        posts.push(post);
+    });
+    return posts.join('\n\n' + '─'.repeat(40) + '\n\n');
 }
 
 function initMasterSelectModal() {
