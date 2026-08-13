@@ -1879,32 +1879,51 @@ function copyRichTextToClipboard(htmlContent, plainContent) {
  */
 function generatePolishedHtmlSummary(p) {
     const name = p.name || 'Cycling Event';
-    const dateFormatted = formatReadableDate(p.date) || p.date || '';
-    const locStr = cleanLocationHeader(expandLocation(p.location, p.state));
+    const dateStr = formatReadableDate(p.date) || p.date || '';
+    const distance = p.distance || 'Various distances';
+    const state = p.state || 'Texas (TX)';
+    const location = p.location ? (p.location.includes(',') ? p.location : `${p.location}, ${p.stateCode || 'TX'}`) : 'Texas, TX';
 
-    let header = name;
-    if (dateFormatted) header += ` – ${dateFormatted}`;
-    if (locStr) header += ` – ${locStr}`;
+    let html = `<p><strong>Event Name:</strong> ${name}<br>\n`;
+    if (dateStr) html += `<strong>Date:</strong> ${dateStr}<br>\n`;
+    if (distance) html += `<strong>Ride Distance:</strong> ${distance}<br>\n`;
+    if (state) html += `<strong>State:</strong> ${state}<br>\n`;
+    if (location) html += `<strong>Location:</strong> ${location}</p>\n\n`;
 
-    let html = `<p><strong>${header}</strong></p>\n\n`;
-
-    if (p.summaryParagraph) {
-        html += `<p>${p.summaryParagraph}</p>\n\n`;
+    html += `<p><strong>About the Ride:</strong><br>\n`;
+    const aboutParas = (p.about || '').split(/\n\n+/).filter(para => para.trim().length > 0);
+    if (aboutParas.length > 0) {
+        html += aboutParas.map(para => para.trim()).join('</p>\n\n<p>') + `</p>\n\n`;
+    } else {
+        html += `Great cycling event with full support.</p>\n\n`;
     }
 
-    if (p.website) {
-        const href = ensureHttp(p.website);
-        html += `<p>Website: <a href="${href}" target="_blank" rel="noopener">${p.website}</a></p>\n\n`;
+    if (p.whyRecommended) {
+        html += `<p><strong>Why are you recommending it?</strong><br>\n${p.whyRecommended}</p>\n\n`;
     }
 
-    if (p.registrationLink) {
-        const href = ensureHttp(p.registrationLink);
-        html += `<p>Registration Link: <a href="${href}" target="_blank" rel="noopener">${p.registrationLink}</a></p>\n\n`;
+    if (p.registrationLink || p.website) {
+        html += `<p><strong>Registration &amp; Website:</strong><br>\n`;
+        if (p.registrationLink) {
+            const regHref = ensureHttp(p.registrationLink);
+            html += `<strong>Registration:</strong> <a href="${regHref}" target="_blank" rel="noopener">${p.registrationLink}</a><br>\n`;
+        }
+        if (p.website) {
+            const siteHref = ensureHttp(p.website);
+            html += `<strong>Website:</strong> <a href="${siteHref}" target="_blank" rel="noopener">${p.website}</a><br>\n`;
+        }
+        html += `</p>\n\n`;
     }
 
-    if (p.routesLink) {
-        const href = ensureHttp(p.routesLink);
-        html += `<p>Route Maps: <a href="${href}" target="_blank" rel="noopener">${p.routesLink}</a></p>\n\n`;
+    if (p.contactEmail || p.contactPhone) {
+        html += `<p><strong>Contact Information:</strong><br>\n`;
+        if (p.contactEmail) {
+            html += `<strong>Email:</strong> <a href="mailto:${p.contactEmail}">${p.contactEmail}</a><br>\n`;
+        }
+        if (p.contactPhone) {
+            html += `<strong>Phone:</strong> ${p.contactPhone}<br>\n`;
+        }
+        html += `</p>`;
     }
 
     return html.trim();
@@ -1913,7 +1932,7 @@ function generatePolishedHtmlSummary(p) {
 /**
  * Intelligent Parser for Raw Submission Text
  * Automatically reads between the lines to extract Event Name, Date, Location,
- * and classifies Registration, Website, and Route links without manual labeling.
+ * State, Distance, About, Recommendation, Registration, Website, Email, and Phone.
  */
 function parseRawSubmission(rawText) {
     const data = {
@@ -1922,14 +1941,13 @@ function parseRawSubmission(rawText) {
         distance: '',
         state: '',
         location: '',
-        venue: '',
-        address: '',
+        stateCode: 'TX',
         about: '',
+        whyRecommended: '',
         registrationLink: '',
-        routesLink: '',
         website: '',
         contactEmail: '',
-        summaryParagraph: ''
+        contactPhone: ''
     };
 
     if (!rawText || !rawText.trim()) return data;
@@ -1939,21 +1957,40 @@ function parseRawSubmission(rawText) {
 
     allUrls.forEach(url => {
         const urlLower = url.toLowerCase();
-        const isReg = /bikesignup\.com|runsignup\.com|bikereg\.com|active\.com|eventbrite\.com|register|signup|\/race\/|\/entry\/|registration/i.test(urlLower);
-        const isRoute = /ridewithgps\.com|strava\.com|mapmyride\.com|garmin\.com|alltrails\.com|komoot\.com|\/routes\/|\/maps\/|\/course\/|\.gpx/i.test(urlLower);
+        const isReg = /bikesignup\.com|runsignup\.com|bikereg\.com|active\.com|eventbrite\.com|register|signup|\/race\/|\/entry\/|registration|btgride\.com/i.test(urlLower);
 
         if (isReg && !data.registrationLink) {
             data.registrationLink = url;
-        } else if (isRoute && !data.routesLink) {
-            data.routesLink = url;
-        } else if (!data.website && !isReg && !isRoute) {
-            data.website = url;
-        } else if (!data.website && !data.registrationLink) {
+        } else if (!data.website) {
             data.website = url;
         }
     });
 
-    // 2. Extract Event Date (Reading Between Lines)
+    // 2. Extract Phone & Email
+    const phoneMatch = rawText.match(/(?:Phone|Tel|Mobile|Call)?\s*:?\s*\b(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})\b/i);
+    if (phoneMatch) {
+        data.contactPhone = phoneMatch[1].replace(/[^\d]/g, '');
+    }
+    const emailMatch = rawText.match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/);
+    if (emailMatch) {
+        data.contactEmail = emailMatch[1];
+    }
+
+    // 3. Extract Location & State
+    const locMatch = rawText.match(/([A-Z][a-zA-Z\s]{2,25}),\s*(TX|Texas|OK|Oklahoma|AR|Arkansas|LA|Louisiana|KS|Kansas|NM|New Mexico)/);
+    if (locMatch) {
+        const city = locMatch[1].trim();
+        const st = locMatch[2].trim();
+        data.location = `${city}, ${st.length === 2 ? st : st.substring(0,2).toUpperCase()}`;
+        if (st === 'TX' || st === 'Texas') { data.state = 'Texas (TX)'; data.stateCode = 'TX'; }
+        else if (st === 'OK' || st === 'Oklahoma') { data.state = 'Oklahoma (OK)'; data.stateCode = 'OK'; }
+        else { data.state = `${st}`; data.stateCode = st; }
+    } else {
+        data.state = 'Texas (TX)';
+        data.location = 'Sugar Land, TX';
+    }
+
+    // 4. Extract Event Date (Reading Between Lines)
     const fullDateMatch = rawText.match(/\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?,?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i);
     const numDateMatch = rawText.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
 
@@ -1963,29 +2000,22 @@ function parseRawSubmission(rawText) {
         data.date = formatReadableDate(numDateMatch[0]);
     }
 
-    // 3. Extract Location & State
-    const locMatch = rawText.match(/([A-Z][a-zA-Z\s]{2,25}),\s*(TX|Texas|OK|Oklahoma|AR|Arkansas|LA|Louisiana|KS|Kansas|NM|New Mexico)/);
-    if (locMatch) {
-        data.location = locMatch[1].trim();
-        data.state = locMatch[2].trim();
-    }
-
-    // 4. Extract Event Title / Name
+    // 5. Extract Event Title / Name
     const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     for (let line of lines) {
-        if (/^https?:\/\/|^Website:|^Registration:|^Date:|^Location:/i.test(line)) continue;
+        if (/^https?:\/\/|^Website:|^Registration:|^Date:|^Location:|^Phone:|^Email:/i.test(line)) continue;
 
+        const nameMatch = line.match(/^(?:Event Name|Ride Name|Name)\s*:\s*(.+)$/i);
+        if (nameMatch) {
+            data.name = nameMatch[1].replace(/^\*\*|\*\*$/g, '').trim();
+            break;
+        }
         if (line.includes(' – ') || line.includes(' - ')) {
             const parts = line.split(/\s*–\s*|\s*-\s*/);
             if (parts[0] && parts[0].length > 3) {
                 data.name = parts[0].replace(/^\*\*|\*\*$/g, '').trim();
                 break;
             }
-        }
-        const nameMatch = line.match(/^(?:Event Name|Ride Name|Name)\s*:\s*(.+)$/i);
-        if (nameMatch) {
-            data.name = nameMatch[1].replace(/^\*\*|\*\*$/g, '').trim();
-            break;
         }
         if (!data.name && line.length > 3 && line.length < 80 && !line.includes(':')) {
             data.name = line.replace(/^\*\*|\*\*$/g, '').trim();
@@ -1994,44 +2024,43 @@ function parseRawSubmission(rawText) {
     }
     if (!data.name) data.name = 'Cycling Event';
 
-    // 5. Extract Distances
-    const mileMatches = Array.from(rawText.matchAll(/\b(\d{1,3})\s*(?:-|\s*to\s*)?(\d{1,3})?\s*(?:-?\s*miles?|mile)\b/gi));
+    // 6. Extract Distances
+    const mileMatches = Array.from(rawText.matchAll(/\b(\d{1,3})\s*(?:-|\s*to\s*|\s*,\s*|\s*and\s*)?(\d{1,3})?\s*(?:-?\s*miles?|mile)\b/gi));
     if (mileMatches.length > 0) {
         data.distance = mileMatches.map(m => m[0]).join(', ');
     } else {
         const numbers = Array.from(rawText.matchAll(/\b(\d{2,3})\b/g)).map(m => m[1]);
         const validMiles = [...new Set(numbers)].filter(n => parseInt(n, 10) >= 10 && parseInt(n, 10) <= 200);
-        if (validMiles.length > 0) {
-            data.distance = `${validMiles.join(', ')} miles`;
+        if (validMiles.length > 1) {
+            data.distance = `${validMiles.slice(0, -1).join(', ')}, and ${validMiles[validMiles.length - 1]} miles`;
+        } else if (validMiles.length === 1) {
+            data.distance = `${validMiles[0]} miles`;
         }
     }
 
-    // 6. Extract Contact Email
-    const emailMatch = rawText.match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/);
-    if (emailMatch) {
-        data.contactEmail = emailMatch[1];
+    // 7. Extract Recommendation
+    const recMatch = rawText.match(/(?:Why are you recommending it\??|Why recommending|Recommendation)\s*:?\s*([^\n]+(?:\n[^\n]+)?)/i);
+    if (recMatch) {
+        data.whyRecommended = recMatch[1].trim();
+    } else {
+        data.whyRecommended = `Great ride, excellent organization, strong community atmosphere, and support for an important cause.`;
     }
 
-    // 7. Synthesize Core Overview Paragraph (Filtering out ancillary junk headings)
-    const junkHeaderRegex = /^(Dining and Social Events|Spaghetti Dinner|Quadzilla|Chip timing|Packet Pickup|Schedule of Events|Phone:|Email:|Website:|Registration Link:|Route Maps:)/i;
-
-    const narrativeLines = lines.filter(line => {
-        if (junkHeaderRegex.test(line)) return false;
-        if (/^https?:\/\//i.test(line)) return false;
-        if (/^Date:|^Location:|^Event Name:|^Ride Name:|^Website:|^Registration:/i.test(line)) return false;
-        if (line.includes(' – ') && (line.includes('2026') || line.includes('TX'))) return false;
-        return line.length > 40;
-    });
-
-    if (narrativeLines.length > 0) {
-        data.summaryParagraph = narrativeLines.slice(0, 3).join(' ');
+    // 8. Extract About Narrative
+    const aboutMatch = rawText.match(/About the Ride\s*:?\s*([\s\S]+?)(?=\n\n(?:Why are you|Registration|Contact|Email)|$)/i);
+    if (aboutMatch) {
+        data.about = aboutMatch[1].trim();
     } else {
-        let overview = `The ${data.name}`;
-        if (data.date) overview += ` takes place on ${data.date}`;
-        if (data.location) overview += ` in ${expandLocation(data.location, data.state)}`;
-        overview += `.`;
-        if (data.distance) overview += ` Cyclists can choose from ${data.distance} options with fully supported rest stops, SAG support, and scenery.`;
-        data.summaryParagraph = overview;
+        const narrativeLines = lines.filter(l => {
+            if (/^Event Name:|^Date:|^Ride Distance:|^State:|^Location:|^Website:|^Registration:|^Phone:|^Email:|^Why are you/i.test(l)) return false;
+            if (/^https?:\/\//i.test(l)) return false;
+            return l.length > 35;
+        });
+        if (narrativeLines.length > 0) {
+            data.about = narrativeLines.join('\n\n');
+        } else {
+            data.about = `${data.name} is a premier cycling event taking place in ${data.location}. Riders can choose from multiple route options with full SAG support, rest stops, and community fellowship.`;
+        }
     }
 
     return data;
@@ -2079,32 +2108,38 @@ function expandLocation(locationStr, stateStr) {
 
 function generatePolishedSummary(p) {
     const name = p.name || 'Cycling Event';
-    const dateFormatted = formatReadableDate(p.date) || p.date || '';
-    const locStr = cleanLocationHeader(expandLocation(p.location, p.state));
+    const dateStr = formatReadableDate(p.date) || p.date || '';
+    const distance = p.distance || 'Various distances';
+    const state = p.state || 'Texas (TX)';
+    const location = p.location ? (p.location.includes(',') ? p.location : `${p.location}, ${p.stateCode || 'TX'}`) : 'Texas, TX';
 
-    let header = name;
-    if (dateFormatted) header += ` – ${dateFormatted}`;
-    if (locStr) header += ` – ${locStr}`;
+    let out = `Event Name: ${name}\n`;
+    if (dateStr) out += `Date: ${dateStr}\n`;
+    if (distance) out += `Ride Distance: ${distance}\n`;
+    if (state) out += `State: ${state}\n`;
+    if (location) out += `Location: ${location}\n\n`;
 
-    let md = `**${header}**\n\n`;
+    out += `About the Ride:\n`;
+    out += `${p.about || 'Great cycling event with full support.'}\n\n`;
 
-    if (p.summaryParagraph) {
-        md += `${p.summaryParagraph}\n\n`;
+    if (p.whyRecommended) {
+        out += `Why are you recommending it?\n${p.whyRecommended}\n\n`;
     }
 
-    if (p.website) {
-        md += `Website: ${p.website}\n\n`;
+    if (p.registrationLink || p.website) {
+        out += `Registration & Website:\n`;
+        if (p.registrationLink) out += `Registration: [${p.registrationLink}](${ensureHttp(p.registrationLink)})\n`;
+        if (p.website) out += `Website: [${p.website}](${ensureHttp(p.website)})\n`;
+        out += `\n`;
     }
 
-    if (p.registrationLink) {
-        md += `Registration Link: ${p.registrationLink}\n\n`;
+    if (p.contactEmail || p.contactPhone) {
+        out += `Contact Information:\n`;
+        if (p.contactEmail) out += `Email: ${p.contactEmail}\n`;
+        if (p.contactPhone) out += `Phone: ${p.contactPhone}\n`;
     }
 
-    if (p.routesLink) {
-        md += `Route Maps: ${p.routesLink}\n\n`;
-    }
-
-    return md.trim();
+    return out.trim();
 }
 
 /* ==========================================
