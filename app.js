@@ -3192,11 +3192,6 @@ function initImageFactChecker() {
         }
 
         return checks;
-    }tected on flyer image.'
-            });
-        }
-
-        return checks;
     }
 
     function renderImageAuditResults(checks) {
